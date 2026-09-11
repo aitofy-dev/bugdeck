@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
-import { fail, ok, silentLogger, type CreateIssueJob, type IssueTracker } from '@bugdeck/core';
+import { fail, ok, silentLogger, type CreateIssueJob, type IssueTracker } from '@aitofy/bugdeck-core';
 import { createIssueBridge } from '../bridge.js';
 import { createMemoryStore } from '../memory-store.js';
 import type { FeedbackStore } from '../store.js';

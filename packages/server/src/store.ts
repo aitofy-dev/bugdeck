@@ -18,7 +18,7 @@ import type {
   FeedbackReport,
   FeedbackState,
   FeedbackThreadEntry,
-} from '@bugdeck/core';
+} from '@aitofy/bugdeck-core';
 
 /** Whoever the host says is making this request. `id` is the only key we use. */
 export interface FeedbackUser {

@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
-import { FEEDBACK_MAX_ASSETS, type FeedbackReport } from '@bugdeck/core';
+import { FEEDBACK_MAX_ASSETS, type FeedbackReport } from '@aitofy/bugdeck-core';
 import { createHarness, OTHER_USER, pngBlob, reportForm, USER } from './harness.js';
 
 const fileReport = async (

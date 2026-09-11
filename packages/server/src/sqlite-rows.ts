@@ -8,8 +8,8 @@
  * Pure and separate from the store so the mapping can be tested without opening
  * a database, and so the store file stays about storage.
  */
-import type { FeedbackBlock, FeedbackContext, FeedbackState, FeedbackThreadEntry } from '@bugdeck/core';
-import type { FeedbackAppend } from '@bugdeck/core';
+import type { FeedbackBlock, FeedbackContext, FeedbackState, FeedbackThreadEntry } from '@aitofy/bugdeck-core';
+import type { FeedbackAppend } from '@aitofy/bugdeck-core';
 import type { StoredReport } from './store.js';
 
 export interface ReportRow {

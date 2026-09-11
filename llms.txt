@@ -4,7 +4,7 @@ Open-source Marker.io / BugHerd alternative — self-hosted bug reports with scr
 & element picker. Files into Plane, GitHub, Linear.
 
 v0.1 ships the Plane adapter. GitHub and Linear are the next two files (see Roadmap).
-npm: bugdeck (React widget), @bugdeck/server (HTTP API), @bugdeck/core (contract + adapters).
+npm: @aitofy/bugdeck (React widget), @aitofy/bugdeck-server (HTTP API), @aitofy/bugdeck-core (contract + adapters).
 License MIT. Node >= 20. React >= 18 peer. Zero telemetry.
 
 ## Index
@@ -45,9 +45,9 @@ No other tool in this category files into Plane.
 
 1. The widget, in your React app:
 
-   pnpm add bugdeck          # react and react-dom >= 18 are peers
+   pnpm add @aitofy/bugdeck          # react and react-dom >= 18 are peers
 
-   import { FeedbackWidget } from 'bugdeck';
+   import { FeedbackWidget } from '@aitofy/bugdeck';
 
    <FeedbackWidget apiBase="http://localhost:3131" />;
 
@@ -59,7 +59,7 @@ No other tool in this category files into Plane.
    PLANE_API_KEY=plane_api_xxxxxxxx \
    PLANE_WORKSPACE_SLUG=acme \
    PLANE_PROJECT_ID=00000000-0000-0000-0000-000000000000 \
-   npx @bugdeck/server
+   npx @aitofy/bugdeck-server
 
    It resolves your board's columns, prints the map, and listens on :3131. Reports are SQLite rows
    and PNGs on disk; the issue appears in Plane a second after the user presses Send.
@@ -69,7 +69,7 @@ packages/server/README.md. Docker Compose and every environment variable are the
 
 ## How it works
 
-  [ your app + <FeedbackWidget/> ]  --multipart-->  [ @bugdeck/server ]  --IssueTracker-->  [ Plane ]
+  [ your app + <FeedbackWidget/> ]  --multipart-->  [ @aitofy/bugdeck-server ]  --IssueTracker-->  [ Plane ]
      screenshot, annotation             POST /reports    SQLite + PNGs on disk       issue + attachments
      element pick, context                               your resolveUser()          code back: PROJ-12
 
@@ -132,11 +132,11 @@ overridden on its own. Every key is listed in packages/widget/README.md.
 
 ## Packages
 
-  bugdeck           The React widget your users click.            packages/widget/README.md
-  @bugdeck/server   The HTTP API: stores reports, files them.     packages/server/README.md
-  @bugdeck/core     The contract both speak, and IssueTracker.    packages/core/README.md
+  @aitofy/bugdeck   The React widget your users click.            packages/widget/README.md
+  @aitofy/bugdeck-server   The HTTP API: stores reports, files them.     packages/server/README.md
+  @aitofy/bugdeck-core     The contract both speak, and IssueTracker.    packages/core/README.md
 
-@bugdeck/core has two entry points: @bugdeck/core/contract is browser-safe (wire contract, block
+@aitofy/bugdeck-core has two entry points: @aitofy/bugdeck-core/contract is browser-safe (wire contract, block
 parsing, derived titles, thread folding) and the root adds image sanitisation and the adapters.
 
 ## Roadmap

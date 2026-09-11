@@ -7,7 +7,7 @@
  *
  * Placeholders are `{name}` and are substituted by `formatString`.
  */
-import { ERROR_CODES, FEEDBACK_MAX_ASSETS, type ErrorCode } from '@bugdeck/core/contract';
+import { ERROR_CODES, FEEDBACK_MAX_ASSETS, type ErrorCode } from '@aitofy/bugdeck-core/contract';
 
 export interface WidgetStrings {
   // ─── launcher ──────────────────────────────────────────────────

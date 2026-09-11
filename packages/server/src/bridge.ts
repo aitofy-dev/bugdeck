@@ -11,7 +11,7 @@
  * serial queue means a slow tracker delays reports instead of opening fifty
  * sockets to a board that is already struggling.
  */
-import { consoleLogger, issueBodyRenderer, type IssueTracker, type Logger } from '@bugdeck/core';
+import { consoleLogger, issueBodyRenderer, type IssueTracker, type Logger } from '@aitofy/bugdeck-core';
 import { buildCreateIssueJob } from './issue-job.js';
 import type { FeedbackStore, StoredAsset, StoredReport } from './store.js';
 

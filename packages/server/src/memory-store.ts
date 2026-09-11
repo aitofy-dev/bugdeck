@@ -5,7 +5,7 @@
  * the API before deciding where reports should really live, and it is what the
  * route tests run against so a route failure is never a database failure.
  */
-import type { FeedbackThreadEntry } from '@bugdeck/core';
+import type { FeedbackThreadEntry } from '@aitofy/bugdeck-core';
 import { appendThreadEntries, applyReportUpdate, newReportRecord } from './report-record.js';
 import type { FeedbackStore, NewAsset, NewReport, ReportUpdate, StoredAsset, StoredReport } from './store.js';
 

@@ -7,7 +7,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FEEDBACK_IMAGE_FIELD, FEEDBACK_MAX_DESCRIPTION } from '@bugdeck/core/contract';
+import { FEEDBACK_IMAGE_FIELD, FEEDBACK_MAX_DESCRIPTION } from '@aitofy/bugdeck-core/contract';
 import { collectContext, type ContextEnv } from '../context.js';
 import { defaultStrings } from '../strings.js';
 import {

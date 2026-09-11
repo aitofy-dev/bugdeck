@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
-import { attachmentName, issueBodyRenderer, ok, type IssueTracker } from '@bugdeck/core';
+import { attachmentName, issueBodyRenderer, ok, type IssueTracker } from '@aitofy/bugdeck-core';
 import { buildCreateIssueJob, BUGDECK_EXTERNAL_SOURCE } from '../issue-job.js';
 import type { StoredAsset, StoredReport } from '../store.js';
 

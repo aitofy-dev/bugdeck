@@ -1,4 +1,4 @@
-import type { FeedbackApiError } from '@bugdeck/core/contract';
+import type { FeedbackApiError } from '@aitofy/bugdeck-core/contract';
 
 export interface ApiErrorMeta {
   status?: number;

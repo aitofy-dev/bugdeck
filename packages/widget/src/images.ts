@@ -4,7 +4,7 @@
  * instead of after a 10 MB upload. Both numbers come from the shared contract,
  * so there is nothing here to drift.
  */
-import { FEEDBACK_MAX_ASSETS, FEEDBACK_MAX_ASSET_BYTES } from '@bugdeck/core/contract';
+import { FEEDBACK_MAX_ASSETS, FEEDBACK_MAX_ASSET_BYTES } from '@aitofy/bugdeck-core/contract';
 import { defaultStrings, formatString, type WidgetStrings } from './strings.js';
 
 export const MAX_IMAGES = FEEDBACK_MAX_ASSETS;

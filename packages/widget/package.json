@@ -1,5 +1,5 @@
 {
-    "name": "bugdeck",
+    "name": "@aitofy/bugdeck",
     "version": "0.1.0",
     "description": "Open-source Marker.io alternative: a React bug-report widget with screenshot, annotation and element picker.",
     "type": "module",
@@ -22,7 +22,7 @@
         "e2e:picker": "node e2e/picker-highlight.mjs"
     },
     "dependencies": {
-        "@bugdeck/core": "workspace:*",
+        "@aitofy/bugdeck-core": "workspace:*",
         "html-to-image": "^1.11.13"
     },
     "peerDependencies": {

@@ -178,4 +178,4 @@ export type {
   FeedbackContext,
   FeedbackReport,
   FeedbackState,
-} from '@bugdeck/core/contract';
+} from '@aitofy/bugdeck-core/contract';

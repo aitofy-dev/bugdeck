@@ -14,7 +14,7 @@ import { readFile, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import type { Database as SqliteDatabase } from 'better-sqlite3';
-import type { FeedbackThreadEntry } from '@bugdeck/core';
+import type { FeedbackThreadEntry } from '@aitofy/bugdeck-core';
 import { appendThreadEntries, applyReportUpdate, newReportRecord } from './report-record.js';
 import { rowToReport, reportToRow, type ReportRow } from './sqlite-rows.js';
 import type {

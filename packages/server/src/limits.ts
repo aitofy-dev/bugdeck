@@ -5,7 +5,7 @@
  * fast error and the server enforces them again because the widget is
  * untrusted. A host raises them by passing `limits`, never by editing a route.
  */
-import { FEEDBACK_MAX_ASSETS, FEEDBACK_MAX_ASSET_BYTES } from '@bugdeck/core';
+import { FEEDBACK_MAX_ASSETS, FEEDBACK_MAX_ASSET_BYTES } from '@aitofy/bugdeck-core';
 
 export interface FeedbackLimits {
   maxAssets: number;

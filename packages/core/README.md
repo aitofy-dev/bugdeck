@@ -1,25 +1,25 @@
-# @bugdeck/core
+# @aitofy/bugdeck-core
 
 The pure half of [bugdeck](https://github.com/aitofy-dev/bugdeck): the wire contract the widget and
 the server both speak, the functions over it, and the `IssueTracker` seam every tracker adapter
 plugs into. No framework, no server, no global state.
 
 ```bash
-pnpm add @bugdeck/core
+pnpm add @aitofy/bugdeck-core
 ```
 
 You need this package directly only if you are writing a tracker adapter, a storage backend, or a
-client in something other than React. The [widget](https://www.npmjs.com/package/bugdeck) and the
-[server](https://www.npmjs.com/package/@bugdeck/server) depend on it for you.
+client in something other than React. The [widget](https://www.npmjs.com/package/@aitofy/bugdeck) and the
+[server](https://www.npmjs.com/package/@aitofy/bugdeck-server) depend on it for you.
 
 ## Two entry points
 
 ```ts
-import { FEEDBACK_MAX_ASSETS, parseFeedbackBlocks } from '@bugdeck/core/contract'; // browser-safe
-import { createPlaneTracker, sanitizeImage } from '@bugdeck/core';                 // Node
+import { FEEDBACK_MAX_ASSETS, parseFeedbackBlocks } from '@aitofy/bugdeck-core/contract'; // browser-safe
+import { createPlaneTracker, sanitizeImage } from '@aitofy/bugdeck-core';                 // Node
 ```
 
-`@bugdeck/core/contract` is the wire contract, block parsing, derived titles and thread folding —
+`@aitofy/bugdeck-core/contract` is the wire contract, block parsing, derived titles and thread folding —
 nothing that has ever heard of a filesystem, so a bundler following it never reaches `sharp`. The
 root adds image sanitisation and the adapters.
 
@@ -39,7 +39,7 @@ root adds image sanitisation and the adapters.
 ## Writing an adapter
 
 ```ts
-import { ok, fail, type IssueTracker } from '@bugdeck/core';
+import { ok, fail, type IssueTracker } from '@aitofy/bugdeck-core';
 
 export function createMyTracker(config: MyConfig): IssueTracker {
   return {

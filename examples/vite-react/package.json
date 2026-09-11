@@ -1,5 +1,5 @@
 {
-    "name": "@bugdeck/example-vite-react",
+    "name": "@aitofy/example-vite-react",
     "private": true,
     "version": "0.1.0",
     "type": "module",
@@ -9,7 +9,7 @@
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
-        "bugdeck": "workspace:*",
+        "@aitofy/bugdeck": "workspace:*",
         "react": "^19.0.0",
         "react-dom": "^19.0.0"
     },

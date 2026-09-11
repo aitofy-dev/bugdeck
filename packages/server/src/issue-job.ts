@@ -15,7 +15,7 @@ import {
   type IssueBodyInput,
   type IssueBodyRenderer,
   type TrackerFile,
-} from '@bugdeck/core';
+} from '@aitofy/bugdeck-core';
 import type { StoredAsset, StoredReport } from './store.js';
 
 /**

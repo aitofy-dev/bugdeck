@@ -6,7 +6,7 @@
  * about what an update means — a disagreement that would only ever show up as
  * "it works in the tests".
  */
-import { buildThread, type FeedbackReport, type FeedbackThreadEntry } from '@bugdeck/core';
+import { buildThread, type FeedbackReport, type FeedbackThreadEntry } from '@aitofy/bugdeck-core';
 import type { NewReport, ReportUpdate, StoredReport } from './store.js';
 
 export function newReportRecord(input: NewReport, now: string): StoredReport {

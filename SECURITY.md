@@ -6,7 +6,7 @@ Report privately to **hello@aitofy.dev**. Do not open a public issue for a vulne
 
 Include:
 
-- the package and version (`@bugdeck/core`, `@bugdeck/server`, `bugdeck`), Node version and OS
+- the package and version (`@aitofy/bugdeck-core`, `@aitofy/bugdeck-server`, `@aitofy/bugdeck`), Node version and OS
 - what an attacker can do, and the steps to reproduce it
 - any proof-of-concept code or output, with tokens removed
 

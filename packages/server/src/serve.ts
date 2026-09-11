@@ -19,7 +19,7 @@ import {
   resolveProjectStates,
   type FeedbackState,
   type Logger,
-} from '@bugdeck/core';
+} from '@aitofy/bugdeck-core';
 import { createFeedbackApp, type FeedbackEnv } from './app.js';
 import { AUTH_HEADER_WARNING, headerUser, USER_EMAIL_HEADER, USER_ID_HEADER, USER_NAME_HEADER } from './auth-header.js';
 import { readServerConfig, type Environment, type ServerConfig } from './config.js';

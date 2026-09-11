@@ -5,7 +5,7 @@ import { createServer as createSocket } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
-import type { Logger } from '@bugdeck/core';
+import type { Logger } from '@aitofy/bugdeck-core';
 import { serve } from '../serve.js';
 
 interface Recorded {

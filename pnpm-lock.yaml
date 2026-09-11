@@ -23,7 +23,7 @@ importers:
 
   examples/server-plane:
     dependencies:
-      '@bugdeck/server':
+      '@aitofy/bugdeck-server':
         specifier: workspace:*
         version: link:../../packages/server
     devDependencies:
@@ -39,7 +39,7 @@ importers:
 
   examples/vite-react:
     dependencies:
-      bugdeck:
+      '@aitofy/bugdeck':
         specifier: workspace:*
         version: link:../../packages/widget
       react:
@@ -83,7 +83,7 @@ importers:
 
   packages/server:
     dependencies:
-      '@bugdeck/core':
+      '@aitofy/bugdeck-core':
         specifier: workspace:*
         version: link:../core
       '@hono/node-server':
@@ -114,7 +114,7 @@ importers:
 
   packages/widget:
     dependencies:
-      '@bugdeck/core':
+      '@aitofy/bugdeck-core':
         specifier: workspace:*
         version: link:../core
       html-to-image:

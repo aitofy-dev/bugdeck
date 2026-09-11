@@ -20,9 +20,9 @@ scans every commit with gitleaks — install it locally with `brew install gitle
 
 ```
 packages/
-├── core/      # @bugdeck/core — pure: contract, blocks, titles, image sanitisation, rendering
-├── server/    # @bugdeck/server — HTTP API, storage adapters, tracker wiring
-└── widget/    # bugdeck — the React widget
+├── core/      # @aitofy/bugdeck-core — pure: contract, blocks, titles, image sanitisation, rendering
+├── server/    # @aitofy/bugdeck-server — HTTP API, storage adapters, tracker wiring
+└── widget/    # @aitofy/bugdeck — the React widget
 examples/      # one runnable app per use case
 ```
 
@@ -31,7 +31,7 @@ clock lives outside it.
 
 ## Adding a tracker adapter: one file plus one registration line
 
-An adapter implements `IssueTracker` from `@bugdeck/core` and lives in
+An adapter implements `IssueTracker` from `@aitofy/bugdeck-core` and lives in
 `packages/core/src/adapters/<name>/index.ts`. Implement only the methods your tracker supports;
 optional capabilities are optional methods.
 
@@ -40,7 +40,7 @@ optional capabilities are optional methods.
 Tests are `node:test` run through `tsx`, next to the code they cover:
 
 ```bash
-pnpm --filter @bugdeck/core test
+pnpm --filter @aitofy/bugdeck-core test
 ```
 
 Test behavior, not implementation. Every bug fix ships with the test that would have caught it.

@@ -9,7 +9,7 @@
  * exits 1, which is the only sensible thing a server can do about it — and a
  * message that lists every missing name at once beats four restarts.
  */
-import { FEEDBACK_STATES, type FeedbackState, type PlaneConfig } from '@bugdeck/core';
+import { FEEDBACK_STATES, type FeedbackState, type PlaneConfig } from '@aitofy/bugdeck-core';
 
 /**
  * How the server learns who is calling.

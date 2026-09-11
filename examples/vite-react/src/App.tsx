@@ -4,7 +4,7 @@
  * and `e2e/picker-highlight.mjs` reads its pixels here.
  */
 import { useState } from 'react';
-import { FeedbackWidget } from 'bugdeck';
+import { FeedbackWidget } from '@aitofy/bugdeck';
 
 const NAV = ['Overview', 'Reports', 'Segments', 'Campaigns', 'Billing', 'Settings'];
 

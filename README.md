@@ -2,8 +2,8 @@
 
 > **Open-source Marker.io / BugHerd alternative — self-hosted bug reports with screenshot, annotation & element picker. Files into Plane, GitHub, Linear.**
 
-[![npm version](https://img.shields.io/npm/v/bugdeck.svg)](https://www.npmjs.com/package/bugdeck)
-[![npm: @bugdeck/server](https://img.shields.io/npm/v/@bugdeck/server.svg?label=%40bugdeck%2Fserver)](https://www.npmjs.com/package/@bugdeck/server)
+[![npm version](https://img.shields.io/npm/v/@aitofy/bugdeck.svg)](https://www.npmjs.com/package/@aitofy/bugdeck)
+[![npm: @aitofy/bugdeck-server](https://img.shields.io/npm/v/@aitofy/bugdeck-server.svg?label=%40aitofy%2Fbugdeck-server)](https://www.npmjs.com/package/@aitofy/bugdeck-server)
 [![CI](https://github.com/aitofy-dev/bugdeck/actions/workflows/ci.yml/badge.svg)](https://github.com/aitofy-dev/bugdeck/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Self-hosted](https://img.shields.io/badge/Self--hosted-%E2%9C%93-green.svg)](https://github.com/aitofy-dev/bugdeck)
@@ -44,11 +44,11 @@ it either way — corrections welcome as a PR.
 **1. The widget**, in your React app:
 
 ```bash
-pnpm add bugdeck        # react and react-dom >= 18 are peers
+pnpm add @aitofy/bugdeck        # react and react-dom >= 18 are peers
 ```
 
 ```tsx
-import { FeedbackWidget } from 'bugdeck';
+import { FeedbackWidget } from '@aitofy/bugdeck';
 
 <FeedbackWidget apiBase="http://localhost:3131" />;
 ```
@@ -62,20 +62,20 @@ PLANE_BASE_URL=https://plane.example.com \
 PLANE_API_KEY=plane_api_xxxxxxxx \
 PLANE_WORKSPACE_SLUG=acme \
 PLANE_PROJECT_ID=00000000-0000-0000-0000-000000000000 \
-npx @bugdeck/server
+npx @aitofy/bugdeck-server
 ```
 
 It resolves your board's columns, prints the map, and listens on `:3131`. Reports are SQLite rows
 and PNGs on disk; the issue appears in Plane a second after the user presses Send.
 
 Already have a server? Mount the app in it and keep your own auth — four lines, in
-[`@bugdeck/server`](./packages/server/README.md#30-seconds). Docker Compose and every environment
+[`@aitofy/bugdeck-server`](./packages/server/README.md#30-seconds). Docker Compose and every environment
 variable are there too.
 
 ## How it works
 
 ```
-[ your app + <FeedbackWidget/> ]  --multipart-->  [ @bugdeck/server ]  --IssueTracker-->  [ Plane ]
+[ your app + <FeedbackWidget/> ]  --multipart-->  [ @aitofy/bugdeck-server ]  --IssueTracker-->  [ Plane ]
    screenshot · annotation             POST /reports      SQLite + PNGs on disk        issue + attachments
    element pick · context                                  your resolveUser()          code back: PROJ-12
 ```
@@ -125,7 +125,7 @@ your scripts:
   import { createRoot } from 'https://esm.sh/react-dom@18/client';
   // ?deps= pins the widget to the SAME React above. Two copies of React on one
   // page is an "invalid hook call", not a bigger download.
-  import { FeedbackWidget } from 'https://esm.sh/bugdeck?deps=react@18,react-dom@18';
+  import { FeedbackWidget } from 'https://esm.sh/@aitofy/bugdeck?deps=react@18,react-dom@18';
 
   createRoot(document.getElementById('bugdeck')).render(
     createElement(FeedbackWidget, { apiBase: 'https://bugs.yourshop.com' }),
@@ -161,9 +161,9 @@ be overridden on its own. Every key is listed in
 
 | Package | What it is | Docs |
 |---|---|---|
-| [`bugdeck`](https://www.npmjs.com/package/bugdeck) | The React widget your users click. | [README](./packages/widget/README.md) |
-| [`@bugdeck/server`](https://www.npmjs.com/package/@bugdeck/server) | The HTTP API: stores reports, files them into a tracker. | [README](./packages/server/README.md) |
-| [`@bugdeck/core`](https://www.npmjs.com/package/@bugdeck/core) | The contract both speak, and the `IssueTracker` seam. | [README](./packages/core/README.md) |
+| [`@aitofy/bugdeck`](https://www.npmjs.com/package/@aitofy/bugdeck) | The React widget your users click. | [README](./packages/widget/README.md) |
+| [`@aitofy/bugdeck-server`](https://www.npmjs.com/package/@aitofy/bugdeck-server) | The HTTP API: stores reports, files them into a tracker. | [README](./packages/server/README.md) |
+| [`@aitofy/bugdeck-core`](https://www.npmjs.com/package/@aitofy/bugdeck-core) | The contract both speak, and the `IssueTracker` seam. | [README](./packages/core/README.md) |
 
 Runnable examples: [`examples/vite-react`](./examples/vite-react) (the app in the GIF) and
 [`examples/server-plane`](./examples/server-plane) (the server, in one file).

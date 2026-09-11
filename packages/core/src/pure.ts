@@ -1,5 +1,5 @@
 /**
- * `@bugdeck/core/contract` — the half of core a browser may import.
+ * `@aitofy/bugdeck-core/contract` — the half of core a browser may import.
  *
  * The root barrel reaches `sanitize-image`, which reaches `sharp`, which is a
  * native Node module. A bundler following the root entry drags all of it into

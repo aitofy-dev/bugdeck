@@ -1,5 +1,5 @@
 {
-    "name": "@bugdeck/example-server-plane",
+    "name": "@aitofy/example-server-plane",
     "private": true,
     "version": "0.1.0",
     "type": "module",
@@ -8,7 +8,7 @@
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
-        "@bugdeck/server": "workspace:*"
+        "@aitofy/bugdeck-server": "workspace:*"
     },
     "devDependencies": {
         "@types/node": "^22.10.2",

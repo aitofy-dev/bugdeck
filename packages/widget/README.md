@@ -6,19 +6,19 @@ Open-source [Marker.io](https://marker.io) / [BugHerd](https://bugherd.com) alte
 
 ```
 user clicks 🐞 → modal (block editor) → POST {apiBase}/reports (multipart)
-                                            └→ @bugdeck/server → tracker issue
+                                            └→ @aitofy/bugdeck-server → tracker issue
 ```
 
 ## Install
 
 ```sh
-pnpm add bugdeck        # react and react-dom >= 18 are peers
+pnpm add @aitofy/bugdeck        # react and react-dom >= 18 are peers
 ```
 
 ## Use
 
 ```tsx
-import { FeedbackWidget, reportApiError } from 'bugdeck';
+import { FeedbackWidget, reportApiError } from '@aitofy/bugdeck';
 
 <FeedbackWidget
   apiBase="/api"                                        // required
@@ -102,7 +102,7 @@ Anything you leave out falls back to English; `errors` merges one level deeper, 
 
 ## Wire format
 
-`POST {apiBase}/reports`, multipart. Field names come from `@bugdeck/core/contract` — the
+`POST {apiBase}/reports`, multipart. Field names come from `@aitofy/bugdeck-core/contract` — the
 browser-safe entry point, so bundling the widget never reaches `sharp` — and the widget and the
 route cannot drift:
 
@@ -199,9 +199,9 @@ Hard-won. Each one cost a production bug; please do not undo them.
 ## Test and build
 
 ```sh
-pnpm --filter bugdeck build       # tsc → dist/
-pnpm --filter bugdeck typecheck
-pnpm --filter bugdeck test        # node:test via tsx — no DOM needed
+pnpm --filter @aitofy/bugdeck build       # tsc → dist/
+pnpm --filter @aitofy/bugdeck typecheck
+pnpm --filter @aitofy/bugdeck test        # node:test via tsx — no DOM needed
 ```
 
 The pure halves (annotate, blocks, images, submit, context, drafts, exit-intent) are tested without a browser.
@@ -213,9 +213,9 @@ The pure halves (annotate, blocks, images, submit, context, drafts, exit-intent)
 It needs a page with a **fixed sidebar and a sticky header**; that is what `examples/vite-react` provides, and it is the whole reason the bug survived two fixes against a bare demo page.
 
 ```sh
-pnpm --filter bugdeck build
+pnpm --filter @aitofy/bugdeck build
 pnpm --filter @bugdeck/example-vite-react dev   # serves http://localhost:5173
-pnpm --filter bugdeck e2e:picker
+pnpm --filter @aitofy/bugdeck e2e:picker
 ```
 
 Playwright is not a dependency of this repo. The script imports `playwright` from wherever it is installed; point `PLAYWRIGHT_MODULE` at a copy if that fails.

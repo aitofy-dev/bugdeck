@@ -9,12 +9,12 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/core/package.json packages/core/
 COPY packages/server/package.json packages/server/
 COPY packages/widget/package.json packages/widget/
-RUN pnpm install --frozen-lockfile --filter @bugdeck/server...
+RUN pnpm install --frozen-lockfile --filter @aitofy/bugdeck-server...
 
 COPY tsconfig.base.json ./
 COPY packages/core packages/core
 COPY packages/server packages/server
-RUN pnpm --filter @bugdeck/server... run build
+RUN pnpm --filter @aitofy/bugdeck-server... run build
 
 FROM node:22-alpine
 WORKDIR /app

@@ -3,7 +3,7 @@
  * network, and an app wired to a memory store.
  */
 import sharp from 'sharp';
-import { ok, silentLogger, type CreateIssueJob, type IssueTracker } from '@bugdeck/core';
+import { ok, silentLogger, type CreateIssueJob, type IssueTracker } from '@aitofy/bugdeck-core';
 import { createFeedbackApp } from '../app.js';
 import { createMemoryStore } from '../memory-store.js';
 import type { FeedbackStore, FeedbackUser } from '../store.js';

@@ -1,4 +1,4 @@
-import type { FeedbackApiError, FeedbackContext } from '@bugdeck/core/contract';
+import type { FeedbackApiError, FeedbackContext } from '@aitofy/bugdeck-core/contract';
 import { getLastApiError } from './api-error.js';
 
 /** The slice of `window` the context needs — injectable so this stays testable. */

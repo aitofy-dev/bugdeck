@@ -19,7 +19,7 @@ import {
   type ErrorCode,
   type FeedbackContext,
   type SanitizedImage,
-} from '@bugdeck/core';
+} from '@aitofy/bugdeck-core';
 import type { FeedbackLimits } from './limits.js';
 
 /** What a decoded multipart body looks like, repeated keys included. */

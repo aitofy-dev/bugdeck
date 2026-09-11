@@ -1,5 +1,5 @@
 {
-    "name": "@bugdeck/server",
+    "name": "@aitofy/bugdeck-server",
     "version": "0.1.0",
     "description": "Self-hosted bug-report API for bugdeck: stores reports and files them into Plane, GitHub or Linear.",
     "type": "module",
@@ -25,7 +25,7 @@
         "serve": "tsx src/bin.ts"
     },
     "dependencies": {
-        "@bugdeck/core": "workspace:*",
+        "@aitofy/bugdeck-core": "workspace:*",
         "@hono/node-server": "^1.13.7",
         "better-sqlite3": "^11.7.0",
         "hono": "^4.6.14",

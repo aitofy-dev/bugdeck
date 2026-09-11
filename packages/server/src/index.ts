@@ -1,5 +1,5 @@
 /**
- * The public surface of `@bugdeck/server`. Nothing is public unless it is here.
+ * The public surface of `@aitofy/bugdeck-server`. Nothing is public unless it is here.
  *
  * Two ways in: `createFeedbackApp` for a host that already has a server and its
  * own auth, and `serve` for a host that wants a container. Both call the same

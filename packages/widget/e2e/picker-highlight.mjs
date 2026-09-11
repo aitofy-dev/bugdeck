@@ -15,9 +15,9 @@
  * fixed sidebar and a sticky header, or this test proves nothing.
  *
  * Run (from the repo root):
- *   pnpm --filter bugdeck build          # the demo imports dist/
+ *   pnpm --filter @aitofy/bugdeck build          # the demo imports dist/
  *   pnpm --filter @bugdeck/example-vite-react dev
- *   pnpm --filter bugdeck e2e:picker
+ *   pnpm --filter @aitofy/bugdeck e2e:picker
  *
  * Playwright is not a dependency of this repo — it is imported from wherever it
  * is already installed:

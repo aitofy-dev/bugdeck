@@ -29,7 +29,7 @@ import {
   type IssueTracker,
   type Logger,
   type SanitizedImage,
-} from '@bugdeck/core';
+} from '@aitofy/bugdeck-core';
 import { createIssueBridge } from './bridge.js';
 import { maxBodyBytes, resolveLimits, type FeedbackLimits } from './limits.js';
 import { createRateLimiter } from './rate-limit.js';

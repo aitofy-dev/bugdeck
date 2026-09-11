@@ -28,7 +28,7 @@ import { accentStyle, themeAttrs, type WidgetTheme } from './theme.js';
 import { useEditorDraft } from './use-editor-draft.js';
 import { useScreenCapture } from './use-screen-capture.js';
 import { usePendingImages, type PendingImage } from './use-pending-images.js';
-import type { FeedbackBlockInput } from '@bugdeck/core/contract';
+import type { FeedbackBlockInput } from '@aitofy/bugdeck-core/contract';
 
 /** What a finished edit looks like, whatever the caller does with it. */
 export interface FeedbackEditorPayload {

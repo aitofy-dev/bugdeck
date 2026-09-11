@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0] - 2026-09-12
 
-First release. Three packages, published together: `bugdeck` (the React widget), `@bugdeck/server`
-(the API) and `@bugdeck/core` (the contract and the tracker adapters).
+First release. Three packages, published together: `@aitofy/bugdeck` (the React widget), `@aitofy/bugdeck-server`
+(the API) and `@aitofy/bugdeck-core` (the contract and the tracker adapters).
 
 ### Added
 
@@ -35,7 +35,7 @@ First release. Three packages, published together: `bugdeck` (the React widget),
 - **The server.** `createFeedbackApp({ tracker, store, resolveUser })` returns a
   [Hono](https://hono.dev) app that mounts anywhere, and `serve()` reads the environment and
   listens. Routes: `POST /reports`, `GET /reports/mine`, `GET /reports/:id`, `GET /assets/:id`.
-- **`npx @bugdeck/server`** and a Dockerfile + Compose file: four Plane variables and a volume.
+- **`npx @aitofy/bugdeck-server`** and a Dockerfile + Compose file: four Plane variables and a volume.
 - **SQLite storage by default.** Reports in `reports.db` (WAL), pixels as files under
   `STORAGE_PATH/assets/`. `FeedbackStore` is seven methods if you already have a database;
   `createMemoryStore()` ships for tests.
@@ -53,8 +53,8 @@ First release. Three packages, published together: `bugdeck` (the React widget),
   and comment reading for the conversation sync.
 - **`IssueTracker` is the seam.** Two required methods, the rest optional; failures are values
   (`Result<T>`), never throws. An adapter that renders its own markup supplies `renderBody`;
-  everything else is filed as the plain HTML in `@bugdeck/core`.
-- **`@bugdeck/core/contract`** — a browser-safe entry point with the wire contract, block parsing,
+  everything else is filed as the plain HTML in `@aitofy/bugdeck-core`.
+- **`@aitofy/bugdeck-core/contract`** — a browser-safe entry point with the wire contract, block parsing,
   derived titles and thread folding, so a bundler following it never reaches `sharp`.
 - **Examples.** `examples/vite-react` is the dashboard in the README's GIF (and the page the pixel
   test for the element picker runs against); `examples/server-plane` is the server in one file.

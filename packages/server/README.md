@@ -1,18 +1,18 @@
-# @bugdeck/server
+# @aitofy/bugdeck-server
 
 The HTTP half of bugdeck: it stores bug reports filed by
 the widget and files them into your issue tracker. Self-hosted, SQLite by default, no telemetry.
 
 ```bash
-pnpm add @bugdeck/server @bugdeck/core
+pnpm add @aitofy/bugdeck-server @aitofy/bugdeck-core
 ```
 
 ## 30 seconds
 
 ```ts
 import { serve } from '@hono/node-server';
-import { createPlaneTracker } from '@bugdeck/core';
-import { createFeedbackApp, createSqliteStore } from '@bugdeck/server';
+import { createPlaneTracker } from '@aitofy/bugdeck-core';
+import { createFeedbackApp, createSqliteStore } from '@aitofy/bugdeck-server';
 
 const app = createFeedbackApp({
   tracker: createPlaneTracker({
@@ -119,7 +119,7 @@ curl -X POST http://localhost:3131/reports \
 
 ## Another tracker
 
-`tracker` is any `IssueTracker` from `@bugdeck/core` — two required methods. An adapter that renders
+`tracker` is any `IssueTracker` from `@aitofy/bugdeck-core` — two required methods. An adapter that renders
 its own markup (Plane inlines images with its own element) supplies `renderBody`; one that does not
 gets the plain HTML renderer in core, which is why nothing in this package imports an adapter.
 

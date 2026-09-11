@@ -1,5 +1,5 @@
 {
-    "name": "@bugdeck/core",
+    "name": "@aitofy/bugdeck-core",
     "version": "0.1.0",
     "description": "Pure core for bugdeck: the report contract, block parsing, derived titles, image sanitisation and issue rendering.",
     "type": "module",

@@ -8,11 +8,11 @@
  *
  *   cp .env.example .env && pnpm start
  *
- * `npx @bugdeck/server` does exactly this and nothing more. Write the file only
+ * `npx @aitofy/bugdeck-server` does exactly this and nothing more. Write the file only
  * when you want to wrap it: a health check next to it, your own logger, a
  * process manager that wants the port back.
  */
-import { serve } from '@bugdeck/server';
+import { serve } from '@aitofy/bugdeck-server';
 
 const started = await serve();
 if (!started.ok) {

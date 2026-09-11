@@ -12,7 +12,7 @@
  * already owns the files and the object URLs, and duplicating a File into the
  * block list would mean two places to revoke.
  */
-import type { FeedbackBlockInput } from '@bugdeck/core/contract';
+import type { FeedbackBlockInput } from '@aitofy/bugdeck-core/contract';
 
 export interface TextBlock {
   kind: 'text';

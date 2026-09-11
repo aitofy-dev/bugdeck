@@ -9,7 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { defaultStrings } from '../strings.js';
-import { FEEDBACK_MAX_ASSETS, FEEDBACK_MAX_ASSET_BYTES } from '@bugdeck/core/contract';
+import { FEEDBACK_MAX_ASSETS, FEEDBACK_MAX_ASSET_BYTES } from '@aitofy/bugdeck-core/contract';
 import {
   MAX_IMAGES,
   MAX_IMAGE_BYTES,

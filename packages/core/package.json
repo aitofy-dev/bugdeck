@@ -23,7 +23,7 @@
     "scripts": {
         "build": "tsc -p tsconfig.build.json",
         "typecheck": "tsc --noEmit",
-        "test": "tsx --test src/__tests__/*.test.ts src/adapters/plane/__tests__/*.test.ts"
+        "test": "tsx --test src/__tests__/*.test.ts src/adapters/plane/__tests__/*.test.ts src/adapters/github/__tests__/*.test.ts"
     },
     "optionalDependencies": {
         "sharp": "^0.33.5"

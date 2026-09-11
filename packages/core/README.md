@@ -35,6 +35,44 @@ root adds image sanitisation and the adapters.
 | `issue-body` | One report as plain HTML: who, what they wrote, where it happened. The default for any tracker with no markup of its own. |
 | `tracker` | `IssueTracker` — two required methods, the rest optional. Failures are values (`Result<T>`), never throws. |
 | `adapters/plane` | Plane as an `IssueTracker`: idempotent create, three-step attachments, state discovery by group, comment polling. |
+| `adapters/github` | GitHub Issues as an `IssueTracker`: Markdown bodies, a hidden marker for idempotency, `open`/`closed` mapped to states, Link-header polling. |
+
+## Adapters: Plane, GitHub
+
+```ts
+import { createPlaneTracker, createGithubTracker } from '@aitofy/bugdeck-core';
+
+const plane = createPlaneTracker({
+  baseUrl: 'https://plane.example.com',
+  apiKey: process.env.PLANE_API_KEY!,
+  workspaceSlug: 'acme',
+  projectId: '0d4f…',            // the project uuid, not its identifier
+  publicUrl: 'https://bugs.example.com', // asset links when an upload is refused
+});
+
+const github = createGithubTracker({
+  owner: 'acme',
+  repo: 'app',
+  token: process.env.GITHUB_TOKEN!, // PAT or app token with `issues: write`
+  labels: ['bugdeck'],              // put on every issue, and the poll filter
+  publicUrl: 'https://bugs.example.com', // screenshots are links: GitHub has no upload API
+});
+```
+
+|  | Plane | GitHub |
+|---|---|---|
+| Body | HTML, images inline | Markdown, images as links to `publicUrl/assets/:id` |
+| Screenshots | uploaded as attachments | not uploaded — the REST API has none |
+| Idempotency | `external_id` on the create | a hidden `<!-- bugdeck:report:<id> -->` in the body, found by search |
+| Code | `DEMO-42`, read off the project | `#42`, the issue number |
+| States | the board's columns, matched by name then group | `open` → `doing`, `closed` → `done`, closed as *not planned* → `fail`; a `pending` or `review` **label** overrides (`stateLabels`) |
+| Polling | `listUpdates` over the project's issues | `listUpdates` over `since` + `labels`, Link-header paged |
+
+Replying to a reporter is the same gesture on both: write a comment that **starts with `@user`**.
+Nothing else on the tracker is ever shown to them — comments there routinely name other people's
+accounts. On GitHub that comment is Markdown and reaches the widget as written.
+
+Both are optional: importing one is what ships it. A server that imports neither files nothing.
 
 ## Writing an adapter
 

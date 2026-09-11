@@ -132,6 +132,11 @@ export interface TrackerComment {
   commentId: string | null;
   html: string;
   createdAt: Date | null;
+  /**
+   * Who wrote it, as the tracker names them. For logs and triage only — what
+   * makes a comment visible to the reporter is the marker, never the author.
+   */
+  author?: string;
 }
 
 /**

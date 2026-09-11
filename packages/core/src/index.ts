@@ -17,3 +17,4 @@ export * from './sanitize-image.js';
 export * from './thread.js';
 export * from './tracker.js';
 export * from './adapters/plane/index.js';
+export * from './adapters/github/index.js';

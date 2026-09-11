@@ -1,0 +1,60 @@
+{
+    "name": "bugdeck",
+    "version": "0.1.0",
+    "description": "Open-source Marker.io alternative: a React bug-report widget with screenshot, annotation and element picker.",
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "files": [
+        "dist",
+        "README.md",
+        "LICENSE"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.build.json",
+        "typecheck": "tsc --noEmit",
+        "test": "tsx --test \"src/**/__tests__/*.test.ts\"",
+        "e2e:picker": "node e2e/picker-highlight.mjs"
+    },
+    "dependencies": {
+        "@bugdeck/core": "workspace:*",
+        "html-to-image": "^1.11.13"
+    },
+    "peerDependencies": {
+        "react": ">=18",
+        "react-dom": ">=18"
+    },
+    "devDependencies": {
+        "@types/node": "^22.10.2",
+        "@types/react": "^19.0.6",
+        "@types/react-dom": "^19.0.3",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+        "tsx": "^4.19.2",
+        "typescript": "^5.7.2"
+    },
+    "keywords": [
+        "marker-io-alternative",
+        "bugherd-alternative",
+        "userback-alternative",
+        "usersnap-alternative",
+        "jam-dev-alternative",
+        "bug-report-widget",
+        "visual-feedback",
+        "screenshot",
+        "annotation",
+        "react",
+        "self-hosted"
+    ],
+    "engines": {
+        "node": ">=20"
+    },
+    "license": "MIT",
+    "sideEffects": false
+}

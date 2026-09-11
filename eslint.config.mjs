@@ -6,6 +6,20 @@ export default tseslint.config(
     js.configs.recommended,
     ...tseslint.configs.recommended,
     {
+        // A node script that drives a browser: it names globals from both sides.
+        files: ['**/e2e/*.mjs'],
+        languageOptions: {
+            globals: {
+                AbortSignal: 'readonly',
+                Image: 'readonly',
+                console: 'readonly',
+                document: 'readonly',
+                fetch: 'readonly',
+                process: 'readonly',
+            },
+        },
+    },
+    {
         rules: {
             '@typescript-eslint/no-explicit-any': 'error',
             // `typeof import('x')` is how an optional dependency is typed

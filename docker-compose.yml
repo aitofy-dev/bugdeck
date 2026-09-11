@@ -1,0 +1,18 @@
+services:
+  bugdeck:
+    build: .
+    image: bugdeck-server
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Pinned, not taken from .env: the container has one place reports can
+      # survive a rebuild, and one port the mapping below can count on.
+      STORAGE_PATH: /data
+      PORT: 3131
+    ports:
+      - '${BUGDECK_PORT:-3131}:3131'
+    volumes:
+      - bugdeck-storage:/data
+
+volumes:
+  bugdeck-storage:

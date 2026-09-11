@@ -1,160 +1,58 @@
 # bugdeck
 
-Open-source Marker.io / BugHerd alternative — self-hosted bug reports with screenshot, annotation
-& element picker. Files into Plane, GitHub, Linear.
+> Open-source Marker.io / BugHerd / Userback alternative: a self-hosted visual bug-report widget for React apps. A user screenshots the page — or points at one element with a devtools-style picker — draws on the shot, writes the report with the pictures inline, and presses Send. It lands on your own server, behind your own auth, and is filed into your issue tracker. MIT, Node >= 20, React >= 18 as a peer, zero telemetry.
 
-v0.1 ships the Plane adapter. GitHub and Linear are the next two files (see Roadmap).
-npm: @aitofy/bugdeck (React widget), @aitofy/bugdeck-server (HTTP API), @aitofy/bugdeck-core (contract + adapters).
-License MIT. Node >= 20. React >= 18 peer. Zero telemetry.
+Three packages, one repository. `@aitofy/bugdeck` is the React widget your users click,
+`@aitofy/bugdeck-server` is the HTTP API that stores reports and files them, and
+`@aitofy/bugdeck-core` is the wire contract both speak plus the `IssueTracker` adapters.
 
-## Index
+The 30-second version:
 
-This file is the whole story in one page. The same material, split up, lives next to it:
+```bash
+pnpm add @aitofy/bugdeck                       # react, react-dom >= 18 are peers
+```
 
-  packages/widget/README.md   The widget: props, styling tokens, translating, wire format, gotchas.
-  packages/server/README.md   The API: routes, mounting, environment, storage, AUTH_MODE.
-  packages/core/README.md     The contract, the two entry points, writing a tracker adapter.
-  examples/vite-react/        The demo app in the GIF: a dashboard with a fixed sidebar.
-  examples/server-plane/      The standalone server, in one file.
-  CONTRIBUTING.md             Clone, install, test, PR. SECURITY.md, CHANGELOG.md as usual.
+```tsx
+import { FeedbackWidget } from '@aitofy/bugdeck';
+<FeedbackWidget apiBase="http://localhost:3131" />;
+```
 
-## Why
+```bash
+PLANE_BASE_URL=… PLANE_API_KEY=… PLANE_WORKSPACE_SLUG=… PLANE_PROJECT_ID=… \
+  npx @aitofy/bugdeck-server                   # listens on :3131
 
-Your users can already tell you what is broken. What they cannot do is tell you which element, at
-which viewport, on which build, after which failed request — so every bug report costs a round trip
-that starts with "can you send a screenshot?".
+TRACKER=github GITHUB_OWNER=… GITHUB_REPO=… GITHUB_TOKEN=… \
+  npx @aitofy/bugdeck-server                   # same, filing into GitHub Issues
+```
 
-The capture layer that fixes this is what Marker.io, BugHerd and Userback charge $39-149/month for,
-and it is the whole of this repository. The reports land on your server, in your tracker, with your
-auth in front of them.
+Already have a server? `createFeedbackApp` is a plain Hono app you mount in it, with your own
+`resolveUser(request)` — `null` is a 401. Every link below is a raw file from
+https://github.com/aitofy-dev/bugdeck.
 
-Compared with the paid tools (entry tiers as published at the time of writing; "?" means the vendor
-does not document it either way):
+## Docs
 
-  Marker.io    from $39/mo   hosted   closed   screenshot, annotate, element picker, GitHub, Linear
-  BugHerd      from $49/mo   hosted   closed   screenshot, annotate, element picker, GitHub, Linear
-  Userback     from $49/mo   hosted   closed   screenshot, annotate, element picker, GitHub, Linear
-  Jam.dev      free tier, then per-user, hosted, closed
-  FasterFixes  free          self-hosted, open source, screenshot, annotate, GitHub, Linear
-  bugdeck      free          self-hosted, open source, screenshot, annotate, element picker,
-                             per-page drafts, Plane today, GitHub and Linear planned
-
-No other tool in this category files into Plane.
-
-## 30-second quick start
-
-1. The widget, in your React app:
-
-   pnpm add @aitofy/bugdeck          # react and react-dom >= 18 are peers
-
-   import { FeedbackWidget } from '@aitofy/bugdeck';
-
-   <FeedbackWidget apiBase="http://localhost:3131" />;
-
-   That is the whole integration: a floating button, bottom right.
-
-2. The server, anywhere Node runs:
-
-   PLANE_BASE_URL=https://plane.example.com \
-   PLANE_API_KEY=plane_api_xxxxxxxx \
-   PLANE_WORKSPACE_SLUG=acme \
-   PLANE_PROJECT_ID=00000000-0000-0000-0000-000000000000 \
-   npx @aitofy/bugdeck-server
-
-   It resolves your board's columns, prints the map, and listens on :3131. Reports are SQLite rows
-   and PNGs on disk; the issue appears in Plane a second after the user presses Send.
-
-Already have a server? Mount the app in it and keep your own auth — four lines, in
-packages/server/README.md. Docker Compose and every environment variable are there too.
-
-## How it works
-
-  [ your app + <FeedbackWidget/> ]  --multipart-->  [ @aitofy/bugdeck-server ]  --IssueTracker-->  [ Plane ]
-     screenshot, annotation             POST /reports    SQLite + PNGs on disk       issue + attachments
-     element pick, context                               your resolveUser()          code back: PROJ-12
-
-The store is the source of truth and the tracker is a mirror: filing happens after the user has been
-answered, so a board that is slow or down never turns a filed bug into a 500. The create is
-idempotent on externalSource=bugdeck plus the report id, so a retry adopts the issue instead of
-duplicating it.
-
-## What the user gets
-
-- Capture the page, or one element: a devtools-style picker highlights what is under the cursor and
-  photographs exactly that box.
-- Draw on it: pen, box, arrow, and a real crop that cuts from the full-resolution image. Undo covers
-  the crop too.
-- Write with the pictures inline: a block editor, so the order of "here is what I did, here is what
-  I saw" survives all the way to the issue.
-- Drafts that survive a refresh: autosaved per page, restored with one line of notice. Closing the
-  tab keeps them.
-- Paste, drop or upload images. Up to 10 per report, 10 MB each, re-encoded server-side.
-- Automatic context: URL, viewport and pixel ratio, user agent, build commit, and the last API
-  failure the app saw before the report was filed.
-- Light and dark, one accent colour prop, and a launcher in any of the four corners.
-
-## What the operator gets
-
-- Self-hosted, SQLite by default. One container, one volume. No database to run.
-- Your auth, not ours. resolveUser(request) is a function you write; null is a 401.
-- Ownership, not tenancy. Someone else's report is a 404 — a stranger has no business learning that
-  an id exists.
-- Images are re-encoded before anything is stored: magic bytes, no SVG or GIF, 5000x5000 ceiling,
-  nosniff on the way out.
-- Rate limited to 10 writes per hour per user, in memory, no Redis.
-- Codes, never sentences. A 4xx answers {"error":"RATE_LIMITED"} so the wording — and the language —
-  stays in the widget.
-
-## Shopify / WordPress
-
-No app, no plugin, no marketplace listing. One snippet in the theme (Shopify: layout/theme.liquid
-before </body>; WordPress: footer.php before </body>), importing React and the widget from a CDN
-with ?deps= pinning them to one React copy. A single-file <script> build that carries its own
-renderer is planned. A storefront visitor is a shopper, not a tester: this is for your staff, on the
-admin and theme-preview pages.
-
-## Translating
-
-The server never sends a sentence, so one object translates the entire surface, error codes
-included:
-
-  <FeedbackWidget
-    apiBase="/api"
-    strings={{
-      launcherLabel: 'Signaler un bug',
-      send: 'Envoyer',
-      errors: { RATE_LIMITED: 'Trop de rapports cette heure-ci.' },
-    }}
-  />
-
-Anything left out falls back to English, and errors merges one level deeper so a single code can be
-overridden on its own. Every key is listed in packages/widget/README.md.
+- [README](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/README.md): what it is, the comparison table against the paid tools, quick start, how the pieces fit together.
+- [llms-full.txt](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/llms-full.txt): every document in this list concatenated into one file — read this if you can only read one.
+- [AGENTS.md](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/AGENTS.md): the engineering rules any change to this repository must follow.
+- [CONTRIBUTING.md](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/CONTRIBUTING.md): clone, install, the four commands CI runs, and how to add a tracker adapter.
+- [CHANGELOG.md](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/CHANGELOG.md): what changed in each release, written for users.
+- [SECURITY.md](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/SECURITY.md): how to report a vulnerability privately.
 
 ## Packages
 
-  @aitofy/bugdeck   The React widget your users click.            packages/widget/README.md
-  @aitofy/bugdeck-server   The HTTP API: stores reports, files them.     packages/server/README.md
-  @aitofy/bugdeck-core     The contract both speak, and IssueTracker.    packages/core/README.md
+- [@aitofy/bugdeck](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/packages/widget/README.md): the React widget — every prop, the ten CSS variables, translating with `strings`, the multipart wire format, and the gotchas that cost a production bug each.
+- [@aitofy/bugdeck-server](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/packages/server/README.md): the HTTP API — routes and error codes, mounting in an existing Hono or Express server, every environment variable, SQLite storage, and why `AUTH_MODE=header` is not authentication.
+- [@aitofy/bugdeck-core](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/packages/core/README.md): the contract, the two entry points (`/contract` is browser-safe, the root adds `sharp` and the adapters), and how to write a tracker adapter.
 
-@aitofy/bugdeck-core has two entry points: @aitofy/bugdeck-core/contract is browser-safe (wire contract, block
-parsing, derived titles, thread folding) and the root adds image sanitisation and the adapters.
+## Examples
 
-## Roadmap
+- [examples/vite-react/src/App.tsx](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/examples/vite-react/src/App.tsx): the widget in a Vite + React app with a fixed sidebar and a sticky header — the page the element-picker pixel test runs against.
+- [examples/server-plane/server.ts](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/examples/server-plane/server.ts): the standalone server in one file, environment in and a listening port out.
+- [examples/express-mount/server.ts](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/examples/express-mount/server.ts): the same app mounted inside an existing Express server, authenticated by that server's own session.
 
-- GitHub Issues adapter — the next release. One file, same seam.
-- Linear adapter.
-- Conversation sync: tracker comments starting with @user come back to the reporter as a thread, and
-  their replies go back up.
-- <script> embed: a bundled build for pages with no React of their own.
+## Optional
 
-One adapter is one file plus one registration line; see CONTRIBUTING.md.
-
-## Zero telemetry
-
-No analytics, no phone-home, no network call you did not ask for. The only host this software talks
-to is the tracker you configured. Nothing is logged that a proxy password or a user's email could
-leak through.
-
-## License
-
-MIT © Aitofy (https://aitofy.dev)
+- [Dockerfile](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/Dockerfile): the server as one container.
+- [docker-compose.yml](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/docker-compose.yml): that container plus the volume the SQLite file and the screenshots live on.
+- [.env.example](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/.env.example): every environment variable the standalone server reads, annotated.
+- [LICENSE](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/LICENSE): MIT.

@@ -1,6 +1,6 @@
 {
     "name": "@aitofy/bugdeck-core",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Pure core for bugdeck: the report contract, block parsing, derived titles, image sanitisation and issue rendering.",
     "type": "module",
     "main": "./dist/index.js",
@@ -18,7 +18,8 @@
     },
     "files": [
         "dist",
-        "README.md"
+        "README.md",
+        "llms.txt"
     ],
     "scripts": {
         "build": "tsc -p tsconfig.build.json",

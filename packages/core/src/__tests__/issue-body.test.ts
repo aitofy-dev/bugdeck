@@ -8,8 +8,14 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultIssueBody, formatViewport, issueBodyRenderer } from '../issue-body.js';
-import { ok, type IssueBodyInput, type IssueTracker } from '../tracker.js';
+import {
+  commentBodyRenderer,
+  defaultCommentBody,
+  defaultIssueBody,
+  formatViewport,
+  issueBodyRenderer,
+} from '../issue-body.js';
+import { ok, type CommentBodyInput, type IssueBodyInput, type IssueTracker } from '../tracker.js';
 
 function job(over: Partial<IssueBodyInput> = {}): IssueBodyInput {
   return {
@@ -101,4 +107,47 @@ test('a tracker that renders its own markup is the one that renders', () => {
 
   assert.equal(issueBodyRenderer(own)(job()), '<p>report-1</p>');
   assert.ok(String(issueBodyRenderer(plainTracker)(job())).includes('reporter@example.com'));
+});
+
+// ─── one message from the reporter ───────────────────────────────
+
+const message = (over: Partial<CommentBodyInput> = {}): CommentBodyInput => ({
+  text: 'still broken after the reload',
+  blocks: [],
+  assetIds: [],
+  ...over,
+});
+
+const comment = (input: CommentBodyInput, publicUrl = '', uploaded = true): string => {
+  const body = defaultCommentBody(input, publicUrl);
+  return typeof body === 'string' ? body : body({ assetIdByFileName: new Map(), uploaded });
+};
+
+test('a message says who is speaking and then what they wrote', () => {
+  const html = comment(message());
+
+  assert.ok(html.startsWith('<p><em>Reporter said:</em></p>'));
+  assert.ok(html.includes('<p>still broken after the reload</p>'));
+});
+
+test('a message with a layout uses its own words, not the flattened text', () => {
+  const html = comment(message({ blocks: [{ kind: 'text', text: 'first' }, { kind: 'text', text: 'second' }] }));
+
+  assert.ok(html.includes('<p>first</p><p>second</p>'));
+  assert.ok(!html.includes('still broken after the reload'));
+});
+
+test('only the screenshots the tracker refused are offered as links', () => {
+  const input = message({ assetIds: ['asset-1'] });
+
+  assert.ok(comment(input, 'https://bugs.example.com').includes('/assets/asset-1'));
+  // Before the upload pass nothing has failed — an image is simply waiting.
+  assert.ok(!comment(input, 'https://bugs.example.com', false).includes('/assets/asset-1'));
+});
+
+test('a tracker that renders its own comments is the one that renders', () => {
+  const own: IssueTracker = { ...plainTracker, renderComment: (input) => `<p>${input.text}</p>` };
+
+  assert.equal(commentBodyRenderer(own)(message()), '<p>still broken after the reload</p>');
+  assert.ok(String(comment(message())).includes('Reporter said'));
 });

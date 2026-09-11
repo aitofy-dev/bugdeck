@@ -1,0 +1,32 @@
+# @aitofy/bugdeck-core
+
+The pure half of bugdeck, an open-source Marker.io / BugHerd alternative: the wire contract the
+widget and the server both speak, the functions over it, and the `IssueTracker` seam every adapter
+plugs into. No framework, no server, no global state. You need it directly only to write an adapter,
+a storage backend, or a client that is not React. MIT, Node >= 20.
+
+    pnpm add @aitofy/bugdeck-core
+
+1. Two entry points. `/contract` is browser-safe, so a bundler following it never reaches `sharp`:
+
+    import { FEEDBACK_MAX_ASSETS, parseFeedbackBlocks } from '@aitofy/bugdeck-core/contract';
+    import { createPlaneTracker, sanitizeImage } from '@aitofy/bugdeck-core';   // Node
+
+2. An adapter is a value the server's `createFeedbackApp` takes as its `tracker`; standalone, it is
+   `TRACKER=plane` or `TRACKER=github` plus `GITHUB_OWNER` / `GITHUB_REPO` / `GITHUB_TOKEN`:
+
+    const plane = createPlaneTracker({ baseUrl, apiKey, workspaceSlug, projectId });
+    const github = createGithubTracker({ owner, repo, token, labels: ['bugdeck'] });
+
+3. Your own is one file. `IssueTracker` has two required methods, the rest optional, and failures
+   come back as values (`Result<T>`), never as throws:
+
+    const jira: IssueTracker = {
+      createIssue: async (job) => ({ ok: true, value: { externalId, code } }),
+      addComment: async (externalId, html) => ({ ok: true, value: { commentId } }),
+    };
+
+The server polls every POLL_INTERVAL seconds: a tracker comment starting with `@user` becomes the
+reporter's reply, everything else stays internal. The contract, every module, adding an adapter:
+https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/packages/core/README.md
+Whole project, one file: https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/llms-full.txt

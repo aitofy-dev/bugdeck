@@ -12,9 +12,11 @@ import {
   buildBlockDescriptionHtml,
   buildDescriptionHtml,
   planeBody,
+  planeCommentBody,
 } from '../html.js';
 import { escapeHtml } from '../../../issue-body.js';
-import type { IssueBodyInput } from '../../../tracker.js';
+import { createPlaneTracker } from '../index.js';
+import type { CommentBodyInput, IssueBodyInput, TrackerBody } from '../../../tracker.js';
 
 const PUBLIC_URL = 'https://app.example';
 
@@ -192,4 +194,61 @@ test('planeBody is byte-identical both ways when there is nothing to inline', ()
     body({ assetIdByFileName: new Map(), uploaded: false }),
     body({ assetIdByFileName: new Map([['feedback-a1.png', 'x']]), uploaded: true }),
   );
+});
+
+// ─── one message from the reporter ───────────────────────────────
+
+const message = (over: Partial<CommentBodyInput> = {}): CommentBodyInput => ({
+  text: 'still broken after the reload',
+  blocks: [],
+  assetIds: [],
+  ...over,
+});
+
+const rendered = (body: TrackerBody, assetIdByFileName: Map<string, string>): string =>
+  typeof body === 'string' ? body : body({ assetIdByFileName, uploaded: true });
+
+test('a comment gets its images back as Plane inline elements', () => {
+  const body = planeCommentBody(
+    message({
+      blocks: [
+        { kind: 'text', text: 'still broken' },
+        { kind: 'image', assetId: 'a1' },
+      ],
+      assetIds: ['a1'],
+    }),
+    PUBLIC_URL,
+  );
+
+  const html = rendered(body, new Map([['feedback-a1.png', 'plane-asset-9']]));
+  assert.ok(html.startsWith('<p><em>Reporter said:</em></p>'));
+  assert.ok(html.includes('<image-component src="plane-asset-9"></image-component>'));
+  assert.ok(!html.includes('/assets/a1'), 'an uploaded image needs no fallback link');
+});
+
+test('a comment image Plane refused becomes an owner-scoped link', () => {
+  const body = planeCommentBody(message({ assetIds: ['a1'] }), PUBLIC_URL);
+
+  assert.ok(rendered(body, new Map()).includes('/assets/a1'));
+  // Before the upload pass nothing has failed yet.
+  assert.equal(typeof body, 'function');
+  if (typeof body === 'function') {
+    assert.ok(!body({ assetIdByFileName: new Map(), uploaded: false }).includes('/assets/a1'));
+  }
+});
+
+test('the adapter renders its own comments, so a host never names Plane markup', () => {
+  const tracker = createPlaneTracker({
+    baseUrl: 'https://plane.example.com',
+    apiKey: 'k',
+    workspaceSlug: 'acme',
+    projectId: 'project-1',
+    publicUrl: PUBLIC_URL,
+  });
+
+  const body = tracker.renderComment?.(
+    message({ blocks: [{ kind: 'image', assetId: 'a1' }], assetIds: ['a1'] }),
+  );
+  assert.ok(body);
+  assert.ok(rendered(body, new Map([['feedback-a1.png', 'plane-asset-9']])).includes('<image-component'));
 });

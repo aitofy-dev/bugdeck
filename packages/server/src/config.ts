@@ -9,7 +9,12 @@
  * exits 1, which is the only sensible thing a server can do about it — and a
  * message that lists every missing name at once beats four restarts.
  */
-import { FEEDBACK_STATES, type FeedbackState, type PlaneConfig } from '@aitofy/bugdeck-core';
+import {
+  FEEDBACK_STATES,
+  type FeedbackState,
+  type GithubConfig,
+  type PlaneConfig,
+} from '@aitofy/bugdeck-core';
 
 /**
  * How the server learns who is calling.
@@ -22,6 +27,17 @@ import { FEEDBACK_STATES, type FeedbackState, type PlaneConfig } from '@aitofy/b
 export const AUTH_MODES = ['header'] as const;
 export type AuthMode = (typeof AUTH_MODES)[number];
 
+export const TRACKERS = ['plane', 'github'] as const;
+export type TrackerKind = (typeof TRACKERS)[number];
+
+/**
+ * Which tracker, and its config — one object, so a GitHub deployment cannot
+ * carry a half-filled Plane config that something later reads by accident.
+ */
+export type TrackerConfig =
+  | { kind: 'plane'; plane: PlaneConfig }
+  | { kind: 'github'; github: GithubConfig };
+
 export interface ServerConfig {
   port: number;
   /** Where `reports.db` and `assets/` live. */
@@ -31,7 +47,11 @@ export interface ServerConfig {
   /** `null` = no CORS headers; the widget is served from this same origin. */
   corsOrigin: string | null;
   authMode: AuthMode;
-  plane: PlaneConfig;
+  tracker: TrackerConfig;
+  /** `0` disables the poll worker outright. */
+  pollIntervalMs: number;
+  /** The prefix that makes a tracker comment visible to the reporter. */
+  publicReplyMarker: string;
 }
 
 export type ConfigResult = { ok: true; value: ServerConfig } | { ok: false; message: string };
@@ -46,12 +66,10 @@ const list = (raw: string): string[] =>
     .map((entry) => entry.trim())
     .filter(Boolean);
 
-const REQUIRED_PLANE = [
-  'PLANE_BASE_URL',
-  'PLANE_API_KEY',
-  'PLANE_WORKSPACE_SLUG',
-  'PLANE_PROJECT_ID',
-] as const;
+const REQUIRED: Record<TrackerKind, readonly string[]> = {
+  plane: ['PLANE_BASE_URL', 'PLANE_API_KEY', 'PLANE_WORKSPACE_SLUG', 'PLANE_PROJECT_ID'],
+  github: ['GITHUB_OWNER', 'GITHUB_REPO', 'GITHUB_TOKEN'],
+};
 
 type StateMapResult =
   | { ok: true; value: Partial<Record<FeedbackState, string>> }
@@ -92,15 +110,21 @@ function parsePort(raw: string): number | null {
   return Number.isInteger(port) && port > 0 && port < 65536 ? port : null;
 }
 
+/** Seconds in, milliseconds out. `0` is the operator turning the poller off. */
+function parsePollInterval(raw: string): number | null {
+  if (!raw) return 300_000;
+  const seconds = Number(raw);
+  return Number.isInteger(seconds) && seconds >= 0 ? seconds * 1000 : null;
+}
+
 /**
  * Everything that makes an environment unusable, as the first message worth
  * printing. Separate from the assembly below so "is this valid" and "what does
  * it mean" are not the same 50 lines.
  */
-function firstProblem(env: Environment): string | null {
-  const tracker = trimmed(env, 'TRACKER') || 'plane';
-  if (tracker !== 'plane') {
-    return `TRACKER=${tracker} is not supported. This release ships one adapter: TRACKER=plane.`;
+function firstProblem(env: Environment, tracker: string): string | null {
+  if (!(TRACKERS as readonly string[]).includes(tracker)) {
+    return `TRACKER=${tracker} is not supported. Use one of: ${TRACKERS.join(', ')}.`;
   }
 
   const authMode = trimmed(env, 'AUTH_MODE') || 'header';
@@ -108,32 +132,50 @@ function firstProblem(env: Environment): string | null {
     return `AUTH_MODE=${authMode} is not supported. Use one of: ${AUTH_MODES.join(', ')}.`;
   }
 
-  const missing = REQUIRED_PLANE.filter((name) => !trimmed(env, name));
+  const missing = REQUIRED[tracker as TrackerKind].filter((name) => !trimmed(env, name));
   if (missing.length) {
-    return `Missing required environment variables: ${missing.join(', ')}. Copy .env.example and fill them in.`;
+    return `TRACKER=${tracker} needs: ${missing.join(', ')}. Copy .env.example and fill them in.`;
   }
   return null;
 }
 
-function planeConfig(
-  env: Environment,
-  publicUrl: string,
-  stateMap: Partial<Record<FeedbackState, string>>,
-): PlaneConfig {
+interface TrackerParts {
+  publicUrl: string;
+  publicReplyMarker: string;
+  stateMap: Partial<Record<FeedbackState, string>>;
+}
+
+function planeConfig(env: Environment, parts: TrackerParts): PlaneConfig {
   const legacyProjectIds = list(trimmed(env, 'PLANE_LEGACY_PROJECT_IDS'));
   return {
     baseUrl: trimmed(env, 'PLANE_BASE_URL').replace(/\/+$/, ''),
     apiKey: trimmed(env, 'PLANE_API_KEY'),
     workspaceSlug: trimmed(env, 'PLANE_WORKSPACE_SLUG'),
     projectId: trimmed(env, 'PLANE_PROJECT_ID'),
+    publicReplyMarker: parts.publicReplyMarker,
     ...(legacyProjectIds.length ? { legacyProjectIds } : {}),
-    ...(publicUrl ? { publicUrl } : {}),
-    ...(Object.keys(stateMap).length ? { stateMap } : {}),
+    ...(parts.publicUrl ? { publicUrl: parts.publicUrl } : {}),
+    ...(Object.keys(parts.stateMap).length ? { stateMap: parts.stateMap } : {}),
+  };
+}
+
+function githubConfig(env: Environment, parts: TrackerParts): GithubConfig {
+  const labels = list(trimmed(env, 'GITHUB_LABELS'));
+  const baseUrl = trimmed(env, 'GITHUB_API_URL').replace(/\/+$/, '');
+  return {
+    owner: trimmed(env, 'GITHUB_OWNER'),
+    repo: trimmed(env, 'GITHUB_REPO'),
+    token: trimmed(env, 'GITHUB_TOKEN'),
+    publicReplyMarker: parts.publicReplyMarker,
+    ...(labels.length ? { labels } : {}),
+    ...(baseUrl ? { baseUrl } : {}),
+    ...(parts.publicUrl ? { publicUrl: parts.publicUrl } : {}),
   };
 }
 
 export function readServerConfig(env: Environment): ConfigResult {
-  const problem = firstProblem(env);
+  const kind = (trimmed(env, 'TRACKER') || 'plane') as TrackerKind;
+  const problem = firstProblem(env, kind);
   if (problem) return { ok: false, message: problem };
 
   const port = parsePort(trimmed(env, 'PORT'));
@@ -141,10 +183,21 @@ export function readServerConfig(env: Environment): ConfigResult {
     return { ok: false, message: `PORT=${trimmed(env, 'PORT')} is not a port number between 1 and 65535.` };
   }
 
+  const pollIntervalMs = parsePollInterval(trimmed(env, 'POLL_INTERVAL'));
+  if (pollIntervalMs === null) {
+    return {
+      ok: false,
+      message: `POLL_INTERVAL=${trimmed(env, 'POLL_INTERVAL')} is not a whole number of seconds. Use 0 to disable polling.`,
+    };
+  }
+
   const stateMap = parseStateMap(trimmed(env, 'PLANE_STATE_MAP'));
   if (!stateMap.ok) return stateMap;
 
   const publicUrl = trimmed(env, 'PUBLIC_URL').replace(/\/+$/, '');
+  const publicReplyMarker = trimmed(env, 'PUBLIC_REPLY_MARKER') || '@user';
+  const parts: TrackerParts = { publicUrl, publicReplyMarker, stateMap: stateMap.value };
+
   return {
     ok: true,
     value: {
@@ -153,7 +206,12 @@ export function readServerConfig(env: Environment): ConfigResult {
       publicUrl,
       corsOrigin: trimmed(env, 'CORS_ORIGIN') || null,
       authMode: (trimmed(env, 'AUTH_MODE') || 'header') as AuthMode,
-      plane: planeConfig(env, publicUrl, stateMap.value),
+      tracker:
+        kind === 'github'
+          ? { kind, github: githubConfig(env, parts) }
+          : { kind: 'plane', plane: planeConfig(env, parts) },
+      pollIntervalMs,
+      publicReplyMarker,
     },
   };
 }

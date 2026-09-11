@@ -113,4 +113,25 @@ describe('createSqliteStore', () => {
       reopened.close();
     }
   });
+
+  it('finds a report by the tracker id, which is all the poll worker knows', async () => {
+    await store.createReport(report('report-external'));
+    await store.updateReport('report-external', { externalId: 'issue-42' });
+
+    assert.equal((await store.getReportByExternalId('issue-42'))?.id, 'report-external');
+    assert.equal(await store.getReportByExternalId('issue-nobody'), null);
+  });
+
+  it('keeps the poll watermark across a restart', async () => {
+    assert.equal(await store.getMeta('sync.since'), null);
+    await store.setMeta('sync.since', '2026-09-12T10:00:00.000Z');
+    await store.setMeta('sync.since', '2026-09-12T10:05:00.000Z');
+
+    const reopened = createSqliteStore({ storagePath });
+    try {
+      assert.equal(await reopened.getMeta('sync.since'), '2026-09-12T10:05:00.000Z');
+    } finally {
+      reopened.close();
+    }
+  });
 });

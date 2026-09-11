@@ -1,6 +1,6 @@
 {
     "name": "@aitofy/bugdeck",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Open-source Marker.io alternative: a React bug-report widget with screenshot, annotation and element picker.",
     "type": "module",
     "main": "./dist/index.js",
@@ -13,7 +13,8 @@
     },
     "files": [
         "dist",
-        "README.md"
+        "README.md",
+        "llms.txt"
     ],
     "scripts": {
         "build": "tsc -p tsconfig.build.json",

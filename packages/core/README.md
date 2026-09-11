@@ -62,6 +62,8 @@ const github = createGithubTracker({
 |  | Plane | GitHub |
 |---|---|---|
 | Body | HTML, images inline | Markdown, images as links to `publicUrl/assets/:id` |
+| Comments | HTML, images inline again | Markdown |
+| Editing | `updateIssue` PATCHes name + description | `updateIssue` PATCHes title + body, marker kept |
 | Screenshots | uploaded as attachments | not uploaded — the REST API has none |
 | Idempotency | `external_id` on the create | a hidden `<!-- bugdeck:report:<id> -->` in the body, found by search |
 | Code | `DEMO-42`, read off the project | `#42`, the issue number |
@@ -70,7 +72,8 @@ const github = createGithubTracker({
 
 Replying to a reporter is the same gesture on both: write a comment that **starts with `@user`**.
 Nothing else on the tracker is ever shown to them — comments there routinely name other people's
-accounts. On GitHub that comment is Markdown and reaches the widget as written.
+accounts. On GitHub that comment is Markdown and reaches the widget as written. Rename the marker
+with `publicReplyMarker` on either config.
 
 Both are optional: importing one is what ships it. A server that imports neither files nothing.
 
@@ -91,8 +94,9 @@ export function createMyTracker(config: MyConfig): IssueTracker {
       return ok({ commentId: '…' });
     },
     // Optional. Omit uploadAttachment and the caller links the images instead;
-    // omit listUpdates and nothing polls; omit renderBody and reports are filed
-    // as the plain HTML in `issue-body`.
+    // omit listUpdates and nothing polls; omit updateIssue and an edited report
+    // stays local; omit renderBody / renderComment and both are written as the
+    // plain HTML in `issue-body`.
   };
 }
 ```

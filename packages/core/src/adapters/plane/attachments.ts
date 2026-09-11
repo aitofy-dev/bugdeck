@@ -14,16 +14,6 @@
 import type { TrackerFile } from '../../tracker.js';
 import { planeApi, PlaneHttpError, type PlaneHttp } from './client.js';
 
-/**
- * Stable and derived from the asset id, never from what the user called the
- * screenshot: without a stable name there is no way to tell "already uploaded"
- * from "uploaded twice", and a retried bridge then decorates the issue with
- * duplicate copies of every image.
- */
-export function attachmentName(assetId: string): string {
-  return `feedback-${assetId}.png`;
-}
-
 /** Which files the issue is still missing, and where the rest already are. */
 export async function assetsMissingFrom(
   http: PlaneHttp,

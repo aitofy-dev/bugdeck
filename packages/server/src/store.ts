@@ -98,6 +98,12 @@ export interface StoredAsset extends NewAsset {
 export interface FeedbackStore {
   createReport(report: NewReport): Promise<StoredReport>;
   getReport(id: string): Promise<StoredReport | null>;
+  /**
+   * The report an issue belongs to. The poll worker reads the tracker's ids,
+   * not ours, and asking the store to look one up beats holding the whole
+   * table in memory once a deployment has a year of reports.
+   */
+  getReportByExternalId(externalId: string): Promise<StoredReport | null>;
   /** Newest first. */
   listReportsByUser(ownerId: string, limit: number): Promise<StoredReport[]>;
   /** A no-op for an id that is not there: the caller checked ownership already. */
@@ -111,4 +117,12 @@ export interface FeedbackStore {
   markThreadMirrored(id: string, index: number, commentId: string): Promise<void>;
   putAsset(reportId: string, asset: NewAsset): Promise<string>;
   getAsset(id: string): Promise<StoredAsset | null>;
+  /**
+   * One small string the server needs to survive a restart — today the
+   * watermark the poll worker resumes from. A table rather than a file so a
+   * host with its own database keeps everything in one place, and a string
+   * rather than a shape so adding a second key needs no migration.
+   */
+  getMeta(key: string): Promise<string | null>;
+  setMeta(key: string, value: string): Promise<void>;
 }

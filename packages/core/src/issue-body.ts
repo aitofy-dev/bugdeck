@@ -10,7 +10,15 @@
  * reads.
  */
 import type { FeedbackApiError, FeedbackViewport } from './contract.js';
-import type { IssueBodyInput, IssueBodyRenderer, IssueTracker, TrackerBody } from './tracker.js';
+import {
+  attachmentName,
+  type CommentBodyInput,
+  type CommentBodyRenderer,
+  type IssueBodyInput,
+  type IssueBodyRenderer,
+  type IssueTracker,
+  type TrackerBody,
+} from './tracker.js';
 
 /** Values only. The tags around them are ours and must reach the tracker raw. */
 export function escapeHtml(raw: string): string {
@@ -117,4 +125,41 @@ export function defaultIssueBody(job: IssueBodyInput, publicUrl = ''): TrackerBo
 export function issueBodyRenderer(tracker: IssueTracker, publicUrl = ''): IssueBodyRenderer {
   const own = tracker.renderBody?.bind(tracker);
   return own ?? ((job) => defaultIssueBody(job, publicUrl));
+}
+
+/** Asset ids the upload pass produced no tracker id for. */
+export function unattachedAssetIds(
+  assetIds: readonly string[],
+  assetIdByFileName: ReadonlyMap<string, string>,
+): string[] {
+  return assetIds.filter((assetId) => !assetIdByFileName.has(attachmentName(assetId)));
+}
+
+/**
+ * One message from the reporter as plain HTML: who is speaking, what they
+ * wrote, and links to whatever the tracker would not hold itself.
+ *
+ * A FUNCTION, unlike `defaultIssueBody`: a message is posted AFTER its images
+ * have been offered to the tracker, so the renderer is told which of them
+ * landed and only links the rest. Before the upload pass nothing has failed
+ * yet — an image with no id is simply an image whose turn has not come.
+ */
+export function defaultCommentBody(input: CommentBodyInput, publicUrl = ''): TrackerBody {
+  const body = input.blocks
+    .filter((block) => block.kind === 'text')
+    .map((block) => `<p>${textBlock(block.text)}</p>`);
+  if (!body.length) body.push(`<p>${textBlock(input.text)}</p>`);
+
+  return ({ assetIdByFileName, uploaded }) => {
+    const failed = uploaded ? unattachedAssetIds(input.assetIds, assetIdByFileName) : [];
+    return ['<p><em>Reporter said:</em></p>', ...body, assetLinksHtml(publicUrl, failed, 'images (sign in to view)')]
+      .filter(Boolean)
+      .join('');
+  };
+}
+
+/** The comment markup for one tracker: its own, or the plain-HTML default. */
+export function commentBodyRenderer(tracker: IssueTracker, publicUrl = ''): CommentBodyRenderer {
+  const own = tracker.renderComment?.bind(tracker);
+  return own ?? ((input) => defaultCommentBody(input, publicUrl));
 }

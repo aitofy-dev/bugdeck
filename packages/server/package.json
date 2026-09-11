@@ -1,7 +1,7 @@
 {
     "name": "@aitofy/bugdeck-server",
-    "version": "0.1.0",
-    "description": "Self-hosted bug-report API for bugdeck: stores reports and files them into Plane, GitHub or Linear.",
+    "version": "0.2.0",
+    "description": "Self-hosted bug-report API for bugdeck: stores reports and files them into Plane or GitHub.",
     "type": "module",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -16,7 +16,8 @@
     },
     "files": [
         "dist",
-        "README.md"
+        "README.md",
+        "llms.txt"
     ],
     "scripts": {
         "build": "tsc -p tsconfig.build.json",

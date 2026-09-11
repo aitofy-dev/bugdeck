@@ -30,6 +30,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Docs are generated, not edited
+        run: pnpm docs:llms && git diff --exit-code llms-full.txt
+
       - name: Typecheck
         run: pnpm typecheck
 

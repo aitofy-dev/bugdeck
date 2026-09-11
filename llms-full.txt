@@ -1,0 +1,1025 @@
+# bugdeck — every document in one file
+
+> Open-source Marker.io / BugHerd alternative: a self-hosted visual bug-report widget for
+> React apps. Screenshot or element pick, annotate, send — the report lands on your own
+> server, behind your own auth, and is filed into your issue tracker.
+
+Generated from the sources below by `scripts/build-llms-full.mjs`; edit those, never this.
+The short index with links to each file on its own is `llms.txt`.
+
+- README.md
+- packages/widget/README.md
+- packages/server/README.md
+- packages/core/README.md
+- CONTRIBUTING.md
+- CHANGELOG.md
+
+---
+
+# README.md
+
+## bugdeck
+
+> **Open-source Marker.io / BugHerd alternative — self-hosted bug reports with screenshot, annotation & element picker. Files into Plane, GitHub, Linear.**
+
+Reading this as an AI agent? [`llms.txt`](https://github.com/aitofy-dev/bugdeck/blob/main/llms.txt) is the index; [`llms-full.txt`](https://github.com/aitofy-dev/bugdeck/blob/main/llms-full.txt)
+is every document in this repository as one file. See [For AI coding agents](#for-ai-coding-agents).
+
+**v0.2 ships the Plane and GitHub adapters.** Linear is next — see [Roadmap](#roadmap).
+
+### Why
+
+Your users can already tell you what is broken. What they cannot do is tell you **which element**,
+at **which viewport**, on **which build**, after **which failed request** — so every bug report
+costs a round trip that starts with "can you send a screenshot?".
+
+The capture layer that fixes this is what Marker.io, BugHerd and Userback charge $39–149/month for,
+and it is the whole of this repository. The reports land on **your** server, in **your** tracker,
+with **your** auth in front of them.
+
+| | Marker.io | BugHerd | Userback | Jam.dev | FasterFixes | **bugdeck** |
+|---|---|---|---|---|---|---|
+| Price | from $39/mo | from $49/mo | from $49/mo | free tier, then per-user | free | **free** |
+| Self-hosted | ✗ | ✗ | ✗ | ✗ | ✓ | **✓** |
+| Open source | ✗ | ✗ | ✗ | ✗ | ✓ | **✓ MIT** |
+| Screenshot | ✓ | ✓ | ✓ | ✓ | ✓ | **✓** |
+| Annotate | ✓ | ✓ | ✓ | ✓ | ✓ | **✓ pen · box · arrow · crop** |
+| Element picker | ✓ | ✓ | ✓ | ✓ | ? | **✓** |
+| Drafts survive a refresh | ? | ? | ? | ? | ? | **✓ one per page** |
+| Plane | ✗ | ✗ | ✗ | ✗ | ✗ | **✓** |
+| GitHub | ✓ | ✓ | ✓ | ✓ | ✓ | **✓** |
+| Linear | ✓ | ✓ | ✓ | ✓ | ✓ | *planned* |
+
+Prices are the published entry tiers at the time of writing. `?` means the vendor does not document
+it either way — corrections welcome as a PR.
+
+### 30-second quick start
+
+**1. The widget**, in your React app:
+
+```bash
+pnpm add @aitofy/bugdeck        # react and react-dom >= 18 are peers
+```
+
+```tsx
+import { FeedbackWidget } from '@aitofy/bugdeck';
+
+<FeedbackWidget apiBase="http://localhost:3131" />;
+```
+
+That is the whole integration: a floating button, bottom right.
+
+**2. The server**, anywhere Node runs:
+
+```bash
+PLANE_BASE_URL=https://plane.example.com \
+PLANE_API_KEY=plane_api_xxxxxxxx \
+PLANE_WORKSPACE_SLUG=acme \
+PLANE_PROJECT_ID=00000000-0000-0000-0000-000000000000 \
+npx @aitofy/bugdeck-server
+```
+
+Or GitHub Issues, three variables instead of four:
+
+```bash
+TRACKER=github GITHUB_OWNER=acme GITHUB_REPO=app \
+GITHUB_TOKEN=ghp_xxxxxxxx \
+npx @aitofy/bugdeck-server
+```
+
+Either way it listens on `:3131` — with Plane it resolves your board's columns and prints the map
+first. Reports are SQLite rows and PNGs on disk; the issue appears in the tracker a second after
+the user presses Send.
+
+Already have a server? Mount the app in it and keep your own auth — four lines, in
+[`@aitofy/bugdeck-server`](https://github.com/aitofy-dev/bugdeck/blob/main/packages/server/README.md#30-seconds). Docker Compose and every environment
+variable are there too.
+
+### How it works
+
+```
+[ your app + <FeedbackWidget/> ]  --multipart-->  [ @aitofy/bugdeck-server ]  --IssueTracker-->  [ Plane ]
+   screenshot · annotation             POST /reports      SQLite + PNGs on disk        issue + attachments
+   element pick · context                                  your resolveUser()          code back: PROJ-12
+```
+
+The store is the source of truth and the tracker is a mirror: filing happens **after** the user has
+been answered, so a board that is slow or down never turns a filed bug into a 500. The create is
+idempotent, so a retry adopts the issue instead of duplicating it.
+
+### What the user gets
+
+- **Capture the page** — or **one element**: a devtools-style picker highlights what is under the
+  cursor and photographs exactly that box.
+- **Draw on it** — pen, box, arrow, and a real **crop** that cuts from the full-resolution image.
+  Undo covers the crop too.
+- **Write with the pictures inline** — a block editor, so the order of "here is what I did, here is
+  what I saw" survives all the way to the issue.
+- **Drafts that survive a refresh** — autosaved per page, restored with one line of notice. Closing
+  the tab keeps them.
+- **Paste, drop or upload** images. Up to 10 per report, 10 MB each, re-encoded server-side.
+- **Automatic context** — URL, viewport and pixel ratio, user agent, build commit, and the last API
+  failure the app saw before the report was filed.
+- **Light and dark**, one accent colour prop, and a launcher in any of the four corners.
+
+### What the operator gets
+
+- **Self-hosted, SQLite by default.** One container, one volume. No database to run.
+- **Your auth, not ours.** `resolveUser(request)` is a function you write; `null` is a 401.
+- **Ownership, not tenancy.** Someone else's report is a 404 — a stranger has no business learning
+  that an id exists.
+- **Images are re-encoded** before anything is stored: magic bytes, no SVG or GIF, 5000×5000
+  ceiling, `nosniff` on the way out.
+- **Rate limited** to 10 writes per hour per user, in memory, no Redis.
+- **Codes, never sentences.** A 4xx answers `{"error":"RATE_LIMITED"}` so the wording — and the
+  language — stays in the widget.
+
+### Replying to the reporter
+
+The server reads the tracker back every `POLL_INTERVAL` seconds and the issue's state follows the
+report. A comment that starts with `@user` is carried down to the reporter as a reply in their own
+thread; **every other comment stays internal**, so the board is still where your team argues. The
+marker is `PUBLIC_REPLY_MARKER` and renaming it changes both halves at once.
+
+### Shopify / WordPress
+
+No app, no plugin, no marketplace listing. It is one snippet in your theme, next to the rest of
+your scripts:
+
+```html
+<!-- Shopify: Online Store → Themes → Edit code → layout/theme.liquid, before </body> -->
+<!-- WordPress: Appearance → Theme File Editor → footer.php, before </body> -->
+<div id="bugdeck"></div>
+<script type="module">
+  import { createElement } from 'https://esm.sh/react@18';
+  import { createRoot } from 'https://esm.sh/react-dom@18/client';
+  // ?deps= pins the widget to the SAME React above. Two copies of React on one
+  // page is an "invalid hook call", not a bigger download.
+  import { FeedbackWidget } from 'https://esm.sh/@aitofy/bugdeck?deps=react@18,react-dom@18';
+
+  createRoot(document.getElementById('bugdeck')).render(
+    createElement(FeedbackWidget, { apiBase: 'https://bugs.yourshop.com' }),
+  );
+</script>
+```
+
+A single-file `<script>` build that carries its own renderer is [planned](#roadmap) — until then the
+snippet pulls React from a CDN. And note that a storefront visitor is a shopper, not a tester: this
+is for **your staff**, on the admin and theme-preview pages.
+
+### Translating
+
+The server never sends a sentence, so one object translates the entire surface — including the
+error codes:
+
+```tsx
+<FeedbackWidget
+  apiBase="/api"
+  strings={{
+    launcherLabel: 'Signaler un bug',
+    send: 'Envoyer',
+    errors: { RATE_LIMITED: 'Trop de rapports cette heure-ci.' },
+  }}
+/>
+```
+
+Anything left out falls back to English, and `errors` merges one level deeper so a single code can
+be overridden on its own. Every key is listed in
+[`WidgetStrings`](https://github.com/aitofy-dev/bugdeck/blob/main/packages/widget/README.md#translating).
+
+### Packages
+
+| Package | What it is | Docs |
+|---|---|---|
+| [`@aitofy/bugdeck`](https://www.npmjs.com/package/@aitofy/bugdeck) | The React widget your users click. | [README](https://github.com/aitofy-dev/bugdeck/blob/main/packages/widget/README.md) |
+| [`@aitofy/bugdeck-server`](https://www.npmjs.com/package/@aitofy/bugdeck-server) | The HTTP API: stores reports, files them into a tracker. | [README](https://github.com/aitofy-dev/bugdeck/blob/main/packages/server/README.md) |
+| [`@aitofy/bugdeck-core`](https://www.npmjs.com/package/@aitofy/bugdeck-core) | The contract both speak, and the `IssueTracker` seam. | [README](https://github.com/aitofy-dev/bugdeck/blob/main/packages/core/README.md) |
+
+Runnable examples: [`examples/vite-react`](https://github.com/aitofy-dev/bugdeck/blob/main/examples/vite-react) (the app in the GIF),
+[`examples/server-plane`](https://github.com/aitofy-dev/bugdeck/blob/main/examples/server-plane) (the server, in one file) and
+[`examples/express-mount`](https://github.com/aitofy-dev/bugdeck/blob/main/examples/express-mount) (the app mounted in an Express server, using its
+session).
+
+### Roadmap
+
+- **Linear adapter** — the next release. One file, same seam.
+- **`<script>` embed** — a bundled build for pages with no React of their own.
+- **Mongo and Postgres stores** — `FeedbackStore` is already the seam; SQLite is only the default.
+
+One adapter is one file plus one registration line: [how to write one](https://github.com/aitofy-dev/bugdeck/blob/main/CONTRIBUTING.md#adding-a-tracker-adapter-one-file-plus-one-registration-line).
+
+### Zero telemetry
+
+No analytics, no phone-home, no network call you did not ask for. The only host this software talks
+to is the tracker you configured. Nothing is logged that a proxy password or a user's email could
+leak through.
+
+### For AI coding agents
+
+- **Everything in one file:** [`llms-full.txt`](https://github.com/aitofy-dev/bugdeck/blob/main/llms-full.txt) — this README, all three package
+  READMEs, `CONTRIBUTING.md` and `CHANGELOG.md`, concatenated. Fetch that one and you have the lot.
+- **Changing this repository:** [`AGENTS.md`](https://github.com/aitofy-dev/bugdeck/blob/main/AGENTS.md) is the rulebook, and CI enforces it.
+- **The types are the docs.** `@aitofy/bugdeck-core/contract` is the browser-safe wire contract both
+  halves import, and every public option carries its JSDoc — an editor with types needs no prose.
+
+Three prompts worth pasting into Cursor, Claude Code or Copilot as they are:
+
+```text
+Add the bugdeck widget to my Vite React app pointing at http://localhost:3131
+Mount @aitofy/bugdeck-server inside my Express app with my session auth
+Translate the widget strings to <language>
+```
+
+### Contributing
+
+Clone, install, test, PR — the whole loop is in [CONTRIBUTING.md](https://github.com/aitofy-dev/bugdeck/blob/main/CONTRIBUTING.md). Issues labelled
+`good first issue` name the exact file to open. To report a vulnerability privately, see
+[SECURITY.md](https://github.com/aitofy-dev/bugdeck/blob/main/SECURITY.md).
+
+### License
+
+MIT © [Aitofy](https://aitofy.dev)
+
+---
+
+# packages/widget/README.md
+
+## bugdeck
+
+Open-source [Marker.io](https://marker.io) / [BugHerd](https://bugherd.com) alternative — a floating "Report a bug" button for React apps. The user screenshots the page (or points at one element), draws on the shot, writes the report with the pictures inline, and presses Send. It lands on your own server, which files it into Plane, GitHub or Linear.
+
+**Zero UI dependencies**: one `<style>` tag, injected once, every rule scoped to the widget's own root so nothing leaks either way. Colours are CSS variables, so `theme` and `accent` are the whole design system. The single runtime dependency is `html-to-image`, imported lazily so it never enters the host app's initial bundle.
+
+```
+user clicks 🐞 → modal (block editor) → POST {apiBase}/reports (multipart)
+                                            └→ @aitofy/bugdeck-server → tracker issue
+```
+
+AI agents: `llms.txt` ships next to this file in the tarball, and
+[`llms-full.txt`](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/llms-full.txt) is the
+whole project — widget, server, core — in one document.
+
+### Install
+
+```sh
+pnpm add @aitofy/bugdeck        # react and react-dom >= 18 are peers
+```
+
+### Use
+
+```tsx
+import { FeedbackWidget, reportApiError } from '@aitofy/bugdeck';
+
+<FeedbackWidget
+  apiBase="/api"                                        // required
+  fetchAuthHeaders={async () => ({ Authorization: t })} // awaited per send — tokens stay fresh
+  buildCommit={__COMMIT__}                              // the most useful context field there is
+  myReportsHref="/reports"
+/>;
+
+// In the app's HTTP interceptor, so the last API failure rides along:
+apiClient.interceptors.response.use(undefined, (err) => {
+  reportApiError(err);
+  throw err;
+});
+```
+
+#### Props
+
+| Prop | Type | Default | What it does |
+|---|---|---|---|
+| `apiBase` | `string` | — | Base of the bugdeck server, e.g. `/api` or `http://localhost:3131`. Required. |
+| `fetchAuthHeaders` | `() => Record<string,string> \| Promise<…>` | — | Awaited on every send, so a short-lived token is never stale. |
+| `buildCommit` | `string` | — | Commit the running bundle was built from. Attached to the report context. |
+| `myReportsHref` | `string` | `'/reports'` | Where the "My reports" link on the confirmation points. |
+| `captureTarget` | `() => HTMLElement \| null` | `document.body` | What gets photographed. |
+| `theme` | `'light' \| 'dark' \| 'auto'` | `'auto'` | `auto` follows the reader's `prefers-color-scheme`. |
+| `accent` | `string` | `#2563eb` | Any CSS colour. Becomes `--bd-accent` for this widget only. |
+| `position` | `'bottom-right' \| 'bottom-left' \| 'top-right' \| 'top-left'` | `'bottom-right'` | Which corner the launcher sits in. |
+| `offset` | `number` | `20` | Launcher distance from both edges of that corner, in px. |
+| `zIndex` | `number` | `2147483000` | Stacking for every layer the widget draws. |
+| `label` | `string` | `strings.launcherLabel` | Launcher label. Prefer `strings` when translating everything. |
+| `strings` | `Partial<WidgetStrings>` | English | Every user-visible word, including one line per server error code. |
+| `toPng` | `ToPng` | lazy `html-to-image` | Test seam. |
+
+`FeedbackEditor` — the composing half with no opinion about where the report goes — takes the same `strings`, `captureTarget`, `toPng` and `zIndex`, plus `initialText` / `initialImages` / `onSubmit`. A report page uses it for "Edit" and "Comment", so there is exactly one editor to fix.
+
+#### Styling
+
+Ten CSS variables, declared on the widget root and nothing else:
+
+`--bd-bg` · `--bd-fg` · `--bd-muted` · `--bd-border` · `--bd-accent` · `--bd-accent-fg` · `--bd-danger` · `--bd-radius` · `--bd-shadow` · `--bd-font`
+
+Light values are declared unconditionally, dark ones under `prefers-color-scheme` and under `[data-bd-theme="dark"]`, so `theme="dark"` works on a host that is otherwise light. Inline style is left for the values that are genuinely dynamic: coordinates, sizes, `zIndex`, the accent override. Animations are dropped under `prefers-reduced-motion`.
+
+Override a token from the host app if a prop is not enough — the widget sets no `!important` except on the element picker's layer, which has to survive hostile host CSS:
+
+```css
+[data-bugdeck-widget] { --bd-radius: 4px; --bd-font: "Inter", sans-serif; }
+```
+
+#### Translating
+
+The server answers `{ "error": "RATE_LIMITED" }` and never a sentence, so every word lives in the widget and one object translates all of it:
+
+```tsx
+<FeedbackWidget
+  apiBase="/api"
+  strings={{
+    launcherLabel: 'Signaler un bug',
+    send: 'Envoyer',
+    errors: { RATE_LIMITED: 'Trop de rapports cette heure-ci.' },
+  }}
+/>
+```
+
+Anything you leave out falls back to English; `errors` merges one level deeper, so a single code can be overridden on its own. `defaultStrings` is exported if you want to diff against it.
+
+### What the user can do
+
+| Task | How |
+|---|---|
+| Capture the page | **Capture screen** — the modal unmounts and a paint is awaited before the shot; the widget's own subtree is filtered out as a second net |
+| Capture one element | **Pick element** — a devtools-style overlay: hover highlights, click captures exactly that box, Esc cancels without losing the text already typed |
+| Add images | Drag-and-drop · paste Ctrl/Cmd+V · **Upload image**. Every route (capture included) **adds a block**, never replaces one. Cap: `FEEDBACK_MAX_ASSETS` (10), 10 MB each |
+| Draw on an image | **Draw** on a thumbnail → canvas editor: Pen / Box / Arrow / **Crop**, red or yellow, Undo, Save. Exports a full-resolution PNG; touch works |
+| Crop | In the draw editor: **Crop** → drag a selection (outside dims) → **Apply crop**. The picture becomes exactly that region at full resolution (cut from the source image, not from the scaled canvas), and the marks move with it. **Undo reverses a crop too** |
+| Interleave text and images | Block editor (`text \| image`): an image is inserted at the caret, and the order survives all the way to the tracker |
+| Come back later | Drafts autosave **per page** (localStorage). Closing the modal, F5 and closing the tab all keep them; reopening the same page restores text and images with a one-line notice. The launcher shows a draft marker |
+| Leave the dialog | **Hide** (✕ · Esc · backdrop · the Hide button) puts it away and KEEPS everything · **Discard** throws it away, asking once inline when there is anything to lose |
+
+**One draft per PAGE** (`draftSlug` = `location.pathname`, query and hash dropped). A different bug on a different screen is a **different report**, not an appendix to the last one — a single global draft would merge two unrelated bugs into one issue that gets read to the end of the first paragraph and closed. Drafts live 7 days and are swept when the widget opens.
+
+### Wire format
+
+`POST {apiBase}/reports`, multipart. Field names come from `@aitofy/bugdeck-core/contract` — the
+browser-safe entry point, so bundling the widget never reaches `sharp` — and the widget and the
+route cannot drift:
+
+| Field | Contents |
+|---|---|
+| `description` | Text — every text block joined by a blank line. A server that only reads this field still gets the whole report |
+| `context` | JSON: `url`, `viewport{width,height,dpr?}`, `userAgent`, `buildCommit?`, `lastApiError?{status,path,message,at?}` |
+| `blocks` | JSON, ordered; new images referenced by their index among the uploaded files. Additive — a server that ignores it loses only the interleaving |
+| `images` | A REPEATED `images` key (not `images[]`), ≤ `FEEDBACK_MAX_ASSETS` files, ≤ 10 MB each, png/jpeg/webp |
+
+Editing (`PATCH /reports/:id`) and commenting (`POST /reports/:id/comment`) use the **same three fields**. One difference: an image the report ALREADY has travels as `{kind:'image', assetId}` inside `blocks` instead of being uploaded again — stable ids are how a tracker adapter recognises its own attachments instead of adding a second copy of every screenshot. `imageIndex` therefore counts only the files actually in the body.
+
+Stored images are served from `GET {apiBase}/assets/:id`, to the report's owner only.
+
+**Editing vs commenting are different things:**
+
+| | Edit the body | Comment |
+|---|---|---|
+| Route | `PATCH /reports/:id` | `POST /reports/:id/comment` |
+| When | ONLY while `pending` | **Every state**, including `done` |
+| Why | Nobody has read it yet, so a real edit is honest. From `doing` on, someone has — rewriting under them is how two people debug different bugs | The most valuable sentence a user writes is *"it is still broken"*, and it always arrives after the report is closed |
+
+Success is `201 { id, code? }` (`code` may arrive later: the tracker bridge runs async). Failures are `{ error: ErrorCode }` — the widget throws a `FeedbackSubmitError` carrying the code and `submitErrorMessage(err, strings)` turns it into a sentence. The server re-encodes every image (magic bytes, no SVG or GIF, capped at 5000×5000); client validation only buys a faster refusal, **the rules live on the server**.
+
+### Architecture
+
+```
+FeedbackWidget.tsx   launcher + filing a NEW report + the "Sent" screen
+Launcher.tsx         the floating pill: icon, label, draft dot, corner + offset
+FeedbackEditor.tsx   the shared composer (blocks + images + capture + picker + drafts).
+                     A report page reuses this exact file for Edit and Comment
+FeedbackModal.tsx    the composing dialog (the insertion point is the last focused text block)
+ModalShell.tsx       scrim, header, body, footer — and every a11y rule: focus trap,
+                     aria-modal, scroll lock, Esc
+FeedbackSent.tsx     the confirmation, with the tracker reference
+EditorToolbar.tsx    Capture screen · Pick element · Upload, one segmented group
+BlockList.tsx        the document: auto-growing paragraphs, images as a contact sheet
+AnnotateToolbar.tsx  the bar over the canvas, and the keys that drive it (P R A C)
+icons.tsx            eleven outlines as path data. No icon dependency
+theme.ts             theme, accent, launcher corner — the whole look, as three props
+styles/              the stylesheet, by area: tokens, chrome, editor, overlays; `sheet.ts`
+                     injects it once, keyed by id
+picker-styles.ts     the picker's geometry, inline and `!important` (see Gotchas)
+image-intake.ts      how an image gets in: dropped, dragged over, pasted
+use-focus-trap.ts    Tab stays in the dialog; the page behind it stops scrolling
+use-editor-draft.ts  restore on open, autosave while typing, save again on unload
+use-screen-capture.ts the shot, and the phase that unmounts the modal before it
+use-annotate-picture.ts loading the image being drawn on (StrictMode-safe)
+strings.ts           every user-visible word, English defaults, `{name}` placeholders
+strings-context.tsx  the merged dictionary, handed down without prop drilling
+exit-intent.ts       Hide (keep) vs Discard (drop) — ✕/Esc/backdrop mean Hide. Pure rule
+draft-store.ts       per-page drafts: slug, defensive parse, budget, 7-day TTL
+AnnotateOverlay.tsx  canvas editor  ─┐
+ElementPicker.tsx    element picker (portalled to body — see Gotchas) ─┤ thin UI over:
+annotate.ts          stroke→canvas, pointer→image coordinates, crop (rect + stroke shift).
+                     Pure, tested without a DOM
+blocks.ts            the block document model and the payload it serialises to
+capture.ts           html-to-image wrapper: imagePlaceholder, 15s timeout, widget filter
+images.ts            size/type/count validation against the contract's limits
+submit.ts            multipart body, endpoints, `FeedbackSubmitError`
+context.ts           url / viewport + pixel ratio / UA / commit / last API failure
+api-error.ts         `reportApiError()` — module-level store for an HTTP interceptor
+describe-error.ts    Event/Error → a readable line (html-to-image rejects raw Events)
+```
+
+Every node the widget owns carries `WIDGET_ROOT_ATTR` (`data-bugdeck-widget`): the capture filter and the element picker both use it to avoid seeing themselves.
+
+### Gotchas
+
+Hard-won. Each one cost a production bug; please do not undo them.
+
+- **A cross-origin image without CORS headers used to kill the whole capture**, with the message `undefined`. `html-to-image` fetches every image to inline it; on failure its catch sets `dataURL = options.imagePlaceholder || ''`, assigns that `''` to the cloned `<img>.src`, and the browser resolves `''` against the DOCUMENT URL — loading the page's own HTML as an image, firing `error`, and rejecting with a raw DOM `Event` that has no `.message`. Its module-level cache then remembers the failure for the life of the tab. The fix is four things: `CAPTURE_IMAGE_PLACEHOLDER` (a real 1×1 PNG, so a broken image becomes a grey box), no `cacheBust`, a 15 s `withTimeout`, and `describeError`.
+- **`cacheBust` is off deliberately.** It appends a timestamp to every image URL and defeats the cache the page already filled: 122 ms vs 15 ms for the same shot in Chrome 148, and it buys nothing now that a failed fetch degrades to a placeholder.
+- **`html-to-image` has no timeout and cannot be cancelled.** One image whose server never answers leaves the promise pending forever and the widget stuck on "Capturing…". 15 s, then give up; the losing promise is swallowed so a shot we abandoned cannot surface as an unhandled rejection in the host app.
+- **A transparent PNG makes Undo look dead** — redrawing over the old frame leaves the undone stroke showing through. `clearRect` before every repaint.
+- **The element picker must not have a pointer-catching overlay.** `elementFromPoint` would return the overlay itself. The design instead is: the widget's UI is `pointer-events:none`, `pointermove`/`click` are listened for on `document` in the capture phase (with `preventDefault`, so a link cannot navigate), and the widget's own chrome is skipped via `firstForeignElement`.
+- **Tokens are declared on `[data-bd-theme]`, never on the widget root.** Every widget root would re-declare the LIGHT palette on itself, and the annotate overlay is a nested root — it would have flipped back to light inside a dark dialog. Only the tops of each tree (launcher, dialog, picker layer) carry the attribute; everything below inherits.
+- **The highlight MUST declare its own z-index and MUST live on `document.body`.** An earlier version drew a `position:fixed` div with no z-index, rendered in place inside the host's tree. On a bare demo page it looked perfect; in a real app (fixed sidebar at `z-10`, sticky header) it was **painted over** — still present, rect correct to the pixel, completely invisible. The banner declared `zIndex+1` and did show, producing exactly the reported symptom: "I click Pick element, I see the banner, nothing highlights." Measured with Playwright: hovering a content card gave `rgb(37,99,235)` on all four edges; hovering a sidebar item gave the sidebar's own `rgb(24,20,17)` on all four. The picker now draws into a **layer portalled to `document.body`** whose style is written with `!important` (`pickerLayerDecls` + `applyImportant`), so the host cannot change its position, stacking or visibility — and `position:fixed` cannot be broken by an ancestor with `transform`/`filter`/`contain`. That layer carries `WIDGET_ROOT_ATTR`; remove the attribute and the widget photographs and picks itself.
+- **The ring is `box-shadow: inset`, never a `border` on an inflated rect.** A 2 px border drawn OUTSIDE the rect leaves the viewport as soon as the hovered element reaches a screen edge — and a full-width panel reaches three at once, so the "highlight" vanishes while its rect is still correct.
+- **A DOM test for the picker is a blind test.** Both earlier fixes passed, because they asked "is there a div, is its rect right" and the broken build answered yes to both. The only check that separates "drawn" from "drawn under the sidebar" is **reading pixels out of a screenshot**: `e2e/picker-highlight.mjs`.
+- **Capture behaviour, if you change it:** opening the modal does NOT capture anything (nobody wants to be photographed by surprise), and a second capture ADDS an image rather than replacing the first.
+- **Drafts must be localStorage, not IndexedDB.** IndexedDB is the better store for blobs, right up until the instant the tab is closing — which is exactly when the draft is worth the most, and `beforeunload` cannot await anything. Two consequences: an image's data URL is **cached when the image is added** (a `FileReader` will not finish during unload), and there is a **budget** (~2 MB) — over it, IMAGES are shed newest-first, **text is never shed**, and the number of images lost is said out loud.
+- **Undo is a stack of STATES, not a stack of strokes.** Since Crop exists, one step back can mean "drop a stroke" or "restore the picture before the crop" — different kinds of thing. The stack holds whole `{picture, strokes}` pairs, which is what makes one Undo button honest about both. Strokes that fall outside the crop are **not deleted**; they take negative coordinates and draw nowhere, because deleting them would make Undo a liar.
+- **Crop cuts from the IMAGE, never from the displayed canvas.** The canvas is shown fit-contain; measuring the selection on screen and cutting there gives the wrong box at the wrong resolution. Every crop coordinate lives in image space (`cropRect`, `shiftStrokes` in `annotate.ts`, both tested).
+- **`URL.revokeObjectURL` in a cleanup + StrictMode = a phantom error.** The effect runs, tears down, runs again; the teardown revokes the first URL while its image is still loading, that image fires `error`, and the editor showed "could not open this image" over a picture that had loaded perfectly from the second URL. A `cancelled` flag is required.
+- **Drawing on an image DROPS its `assetId`** (when editing an existing report). Those are new bytes; keeping the id tells the server "same image as before" and the drawing never leaves the browser.
+- **Hide has to FLUSH the draft, not trust the autosave.** The 600 ms debounce is cleared when the editor unmounts, so everything typed in the last 600 ms — which, for a one-sentence report, is everything — went away with the dialog that promised to keep it. `Hide` writes the snapshot synchronously before closing, the same way `beforeunload` does.
+- **"Cancel" that KEEPS the draft is one word saying two things.** Once drafts autosaved, the old Cancel only closed the modal: whoever wanted to keep their text was afraid to press it, and whoever wanted it gone pressed it and met the draft again later. It is now two buttons with one rule in `exit-intent.ts` (pure, tested): **✕ · Esc · backdrop click all mean Hide** when there is a draft — the most reflexive gesture must be the one that loses nothing. With no draft (editing an existing report, commenting) the Hide button is not shown at all: promising to keep something nothing is keeping is a lie. The confirmation is **inline in the dialog**, never `window.confirm` (some mobile browsers suppress it silently, so the draft would vanish unasked), and `clearDraft` runs **before** closing — close first and the pending autosave writes the discarded draft back.
+
+### Screens
+
+`docs/screens/` — light and dark, straight out of the demo app: `launcher-*.png`, `modal-*.png`, `annotate-*.png`.
+
+### Test and build
+
+```sh
+pnpm --filter @aitofy/bugdeck build       # tsc → dist/
+pnpm --filter @aitofy/bugdeck typecheck
+pnpm --filter @aitofy/bugdeck test        # node:test via tsx — no DOM needed
+```
+
+The pure halves (annotate, blocks, images, submit, context, drafts, exit-intent) are tested without a browser.
+
+#### The pixel test
+
+`e2e/picker-highlight.mjs` is the check for "Pick element". It hovers five points spread across the viewport and **reads the four edge pixels of the highlight out of a screenshot**. How it locates the highlight deliberately does NOT depend on how the highlight is drawn — it only asks "which piece of widget chrome has the same box as the hovered element" — so changing the implementation cannot make it pass falsely.
+
+It needs a page with a **fixed sidebar and a sticky header**; that is what `examples/vite-react` provides, and it is the whole reason the bug survived two fixes against a bare demo page.
+
+```sh
+pnpm --filter @aitofy/bugdeck build
+pnpm --filter @aitofy/example-vite-react dev   # serves http://localhost:5173
+pnpm --filter @aitofy/bugdeck e2e:picker
+```
+
+Playwright is not a dependency of this repo. The script imports `playwright` from wherever it is installed; point `PLAYWRIGHT_MODULE` at a copy if that fails.
+
+| Env | Default | |
+|---|---|---|
+| `WIDGET_DEMO_URL` | `http://localhost:5173` | the page to test against |
+| `PLAYWRIGHT_MODULE` | bare `import('playwright')` | path to an installed Playwright |
+| `HEADED` | — | `1` to watch it happen |
+
+The remaining DOM work (capturing, drawing) is verified in a real Chromium while developing — unit tests are blind to it.
+
+### Notes
+
+- Inline images on Plane use `<image-component>`, the Plane editor's internal format rather than a public API. Images are always attachments as well, so a format change costs the layout, never the pictures.
+- Embedding outside React needs a `<script>` build (bundled React, or a Preact port) — not done yet.
+
+### License
+
+MIT
+
+---
+
+# packages/server/README.md
+
+## @aitofy/bugdeck-server
+
+The HTTP half of bugdeck: it stores bug reports filed by
+the widget and files them into your issue tracker. Self-hosted, SQLite by default, no telemetry.
+
+```bash
+pnpm add @aitofy/bugdeck-server @aitofy/bugdeck-core
+```
+
+### 30 seconds
+
+```ts
+import { serve } from '@hono/node-server';
+import { createPlaneTracker } from '@aitofy/bugdeck-core';
+import { createFeedbackApp, createSqliteStore } from '@aitofy/bugdeck-server';
+
+const app = createFeedbackApp({
+  tracker: createPlaneTracker({
+    baseUrl: process.env.PLANE_BASE_URL!,
+    apiKey: process.env.PLANE_API_KEY!,
+    workspaceSlug: process.env.PLANE_WORKSPACE_SLUG!,
+    projectId: process.env.PLANE_PROJECT_ID!,
+  }),
+  store: createSqliteStore({ storagePath: './storage' }),
+  // Your auth, your answer. `null` is a 401.
+  resolveUser: async (request) => mySession(request.headers.get('cookie')),
+});
+
+serve({ fetch: app.fetch, port: 3131 });
+```
+
+The app is a plain [Hono](https://hono.dev) instance, so it mounts anywhere:
+
+```ts
+myHonoApp.route('/feedback', app);
+```
+
+#### Express
+
+```ts
+import express from 'express';
+import { getRequestListener } from '@hono/node-server';
+
+const server = express();
+server.use('/feedback', getRequestListener(app.fetch));
+```
+
+Express strips the mount path before the handler sees it, so the routes below line up as-is.
+
+### Routes
+
+| Route | What it does |
+|-------|--------------|
+| `POST /reports` | multipart: `description`, `context` (JSON), `blocks` (JSON, optional) and up to 10 screenshots under a repeated `images` key. Every image is re-encoded before anything is stored. |
+| `PATCH /reports/:id` | the same body again, rewriting the report. Allowed **only while `state` is `pending`** — once someone has picked it up the answer is `409 {"error":"NOT_PENDING"}` and the way to add something is a comment. Images the report already has travel as `{"kind":"image","assetId":"…"}` blocks instead of being uploaded again; `imageIndex` counts only the files actually in this body. |
+| `POST /reports/:id/comment` | the same body as a message on the conversation. Allowed in **every** state, `done` and `fail` included — "it is still broken" always arrives after the item was closed. Capped at 20 messages from the user per report. |
+| `GET /reports/mine` | the caller's own reports, newest first, without their conversations. `?limit=` caps at 50. |
+| `GET /reports/:id` | one report, with the conversation folded in. Someone else's report is a 404. |
+| `GET /assets/:id` | the PNG bytes of one screenshot, `nosniff` and `inline`. Only the owner of the parent report may read it. |
+
+Every 4xx answers with a **code, never a sentence** — `{"error":"TOO_MANY_IMAGES"}`. The widget owns
+the wording so it can be translated: `UNAUTHENTICATED`, `BAD_REQUEST`, `MISSING_DESCRIPTION`,
+`TOO_MANY_IMAGES`, `IMAGE_TOO_LARGE`, `UNSUPPORTED_IMAGE`, `NOT_PENDING`, `NOT_FOUND`,
+`RATE_LIMITED`. The three write routes share one budget of 10 requests per hour per user.
+
+After the 201 the report is queued onto the tracker, off the request: a board being slow or down
+never turns a filed bug into a 500. The create is idempotent on `externalSource=bugdeck` plus the
+report id, so a retry adopts the issue instead of duplicating it. Edits and comments ride the same
+queue, so a message written while the issue was still being retried is posted the moment it exists
+rather than lost — each one is marked with the tracker's comment id, which is what keeps a retry
+from saying it twice.
+
+A tracker that can rewrite an issue says so with an optional `updateIssue` on `IssueTracker`; both
+adapters have one. A tracker without it keeps the text the report was filed with, and the edit stays
+local.
+
+### Standalone
+
+```bash
+cp .env.example .env   # fill in the tracker values
+docker compose up -d
+```
+
+Or without Docker: `npx bugdeck-server`, with the same environment.
+
+On Plane, startup resolves your board's columns and logs the map. A project with no column for one
+of the five states refuses to boot — reports that file fine and never come back are worse than a
+server that will not start. GitHub has open and closed and needs no such promise, so it costs no
+request at startup.
+
+| Variable | Required | Default | What it is |
+|----------|----------|---------|------------|
+| `TRACKER` | no | `plane` | `plane` or `github`. Decides which block below is required. |
+| `STORAGE_PATH` | no | `./storage` | Holds `reports.db` and `assets/`. Mount a volume at it. |
+| `PORT` | no | `3131` | |
+| `PUBLIC_URL` | no | — | How the outside world reaches this server; used for asset links on the issue. |
+| `POLL_INTERVAL` | no | `300` | Seconds between reads of the tracker. `0` turns the poller off. |
+| `PUBLIC_REPLY_MARKER` | no | `@user` | The prefix that makes a comment visible to the reporter. |
+| `AUTH_MODE` | no | `header` | See below. |
+| `CORS_ORIGIN` | no | — | The origin the widget is served from. Unset means no CORS headers. |
+
+#### `TRACKER=plane`
+
+| Variable | Required | Default | What it is |
+|----------|----------|---------|------------|
+| `PLANE_BASE_URL` | **yes** | — | Your Plane instance, e.g. `https://plane.example.com`. |
+| `PLANE_API_KEY` | **yes** | — | Workspace API key. |
+| `PLANE_WORKSPACE_SLUG` | **yes** | — | The slug in your Plane URLs. |
+| `PLANE_PROJECT_ID` | **yes** | — | The project reports are filed into. |
+| `PLANE_LEGACY_PROJECT_IDS` | no | — | Comma-separated projects the poller also reads. Never written to. |
+| `PLANE_STATE_MAP` | no | discovered | JSON, state → Plane state id. Only for a board that does not follow the convention. |
+
+#### `TRACKER=github`
+
+| Variable | Required | Default | What it is |
+|----------|----------|---------|------------|
+| `GITHUB_OWNER` | **yes** | — | The user or organisation that owns the repo. |
+| `GITHUB_REPO` | **yes** | — | The repo issues are filed into. |
+| `GITHUB_TOKEN` | **yes** | — | PAT or app installation token with `issues: write` on that repo. |
+| `GITHUB_LABELS` | no | — | Comma-separated labels put on every issue we file, and the filter the poller reads back with. |
+| `GITHUB_API_URL` | no | `https://api.github.com` | For GitHub Enterprise Server. |
+
+GitHub has no attachment API, so every screenshot on an issue is a link back to `GET /assets/:id`
+on this server — set `PUBLIC_URL` or they go unmentioned. Issues we filed are recognised by a
+hidden marker in the body, which is also the dedupe: the poller ignores issues the repo's humans
+filed themselves.
+
+#### Replying to the reporter
+
+The poller reads the tracker every `POLL_INTERVAL` seconds and carries two things back: the state
+(your column, or open/closed on GitHub) and your reply.
+
+**A comment starting with `@user` is shown to the reporter. Every other comment stays internal.**
+That is the whole rule, and it is opt-in on purpose — comments on an issue routinely name other
+people's accounts, and nothing without the marker may ever reach a widget.
+
+```text
+@user Fixed in 1.4.2, please reload the page.   → the reporter sees this
+ask the payments team whether it repeats        → the reporter never sees this
+```
+
+The marker is stripped before the reporter sees the text, the reply is added to the report's
+conversation once (a second pass over the same comment adds nothing), and `publicReply` is whatever
+you said last. Rename the marker with `PUBLIC_REPLY_MARKER`.
+
+Mounting the app yourself? The poller is a separate object, so wire it up next to the app:
+
+```ts
+import { createSyncWorker } from '@aitofy/bugdeck-server';
+
+const worker = createSyncWorker({
+  tracker,
+  store,
+  intervalMs: 300_000,
+  onStateChange: (report, state) => notify(report.ownerId, `#${report.code} is now ${state}`),
+  onReply: (report, reply) => notify(report.ownerId, reply),
+});
+worker.start();
+```
+
+`serve()` takes the same two hooks as options, and nothing else in this package sends a
+notification: the host owns the bell.
+
+#### `AUTH_MODE=header` is not authentication
+
+The standalone server trusts `X-User-Id` and `X-User-Email`. **Run it behind your own
+authenticating proxy.** Exposed directly to the internet, anyone can read anyone's reports by typing
+a header. It is the default because every host already has auth and none of them want a second one —
+and when you mount `createFeedbackApp` in your own server you pass your own `resolveUser` and this
+mode never runs.
+
+```bash
+curl -X POST http://localhost:3131/reports \
+  -H 'X-User-Id: user-1' \
+  -H 'X-User-Email: reporter@example.com' \
+  -F 'description=The export button does nothing. I tried twice.' \
+  -F 'context={"url":"https://app.example.com","viewport":{"width":1280,"height":720},"userAgent":"curl"}' \
+  -F 'images=@screenshot.png'
+```
+
+```json
+{ "id": "b1d1…", "title": "The export button does nothing", "state": "pending", "assetIds": ["…"] }
+```
+
+`code` (`PROJ-12`) appears once the tracker has accepted the issue — a second later, on
+`GET /reports/:id`.
+
+### Another tracker
+
+`tracker` is any `IssueTracker` from `@aitofy/bugdeck-core` — two required methods, the rest
+optional. An adapter that renders its own markup (Plane inlines images with its own element)
+supplies `renderBody` and `renderComment`; one that does not gets the plain HTML renderers in core,
+which is why nothing in this package imports an adapter. `updateIssue` is how an edit reaches the
+issue, and `listUpdates` is what the poller needs — an adapter with neither still files reports.
+
+### Storage
+
+`createSqliteStore` keeps the report in SQLite (WAL, schema migrated on open) and the pixels as
+files under `${STORAGE_PATH}/assets/`. A 10 MB blob per row turns every query into a file copy;
+on disk they are files an operator can count, rsync and delete.
+
+Already have a database? Implement `FeedbackStore` — eleven methods, two of them the poll
+worker's watermark — and pass it as `store`.
+`createMemoryStore()` ships too, for tests and for trying the API before deciding.
+
+### License
+
+MIT
+
+---
+
+# packages/core/README.md
+
+## @aitofy/bugdeck-core
+
+The pure half of [bugdeck](https://github.com/aitofy-dev/bugdeck): the wire contract the widget and
+the server both speak, the functions over it, and the `IssueTracker` seam every tracker adapter
+plugs into. No framework, no server, no global state.
+
+```bash
+pnpm add @aitofy/bugdeck-core
+```
+
+You need this package directly only if you are writing a tracker adapter, a storage backend, or a
+client in something other than React. The [widget](https://www.npmjs.com/package/@aitofy/bugdeck) and the
+[server](https://www.npmjs.com/package/@aitofy/bugdeck-server) depend on it for you.
+
+### Two entry points
+
+```ts
+import { FEEDBACK_MAX_ASSETS, parseFeedbackBlocks } from '@aitofy/bugdeck-core/contract'; // browser-safe
+import { createPlaneTracker, sanitizeImage } from '@aitofy/bugdeck-core';                 // Node
+```
+
+`@aitofy/bugdeck-core/contract` is the wire contract, block parsing, derived titles and thread folding —
+nothing that has ever heard of a filesystem, so a bundler following it never reaches `sharp`. The
+root adds image sanitisation and the adapters.
+
+### What is in it
+
+| Module | What it decides |
+|---|---|
+| `contract` | Field names, limits, `FeedbackState`, `ErrorCode`, the report and context shapes. One fact, one place — the widget and the route cannot drift. |
+| `blocks` | Parses the untrusted ordered text+image document. An image index becomes the asset id just minted for it; an id this report does not own is dropped. |
+| `derive-title` | The one line triage reads, derived from the first sentence. Nobody filing a bug also writes a headline. |
+| `thread` | Folds legacy appends and tracker replies into one chronological conversation, deduped by comment id. |
+| `sanitize-image` | Re-encodes every upload through `sharp`: magic bytes, no SVG or GIF, 5000×5000 ceiling. `sharp` is an optional dependency — install it only if you accept images. |
+| `issue-body` | One report as plain HTML: who, what they wrote, where it happened. The default for any tracker with no markup of its own. |
+| `tracker` | `IssueTracker` — two required methods, the rest optional. Failures are values (`Result<T>`), never throws. |
+| `adapters/plane` | Plane as an `IssueTracker`: idempotent create, three-step attachments, state discovery by group, comment polling. |
+| `adapters/github` | GitHub Issues as an `IssueTracker`: Markdown bodies, a hidden marker for idempotency, `open`/`closed` mapped to states, Link-header polling. |
+
+### Adapters: Plane, GitHub
+
+```ts
+import { createPlaneTracker, createGithubTracker } from '@aitofy/bugdeck-core';
+
+const plane = createPlaneTracker({
+  baseUrl: 'https://plane.example.com',
+  apiKey: process.env.PLANE_API_KEY!,
+  workspaceSlug: 'acme',
+  projectId: '0d4f…',            // the project uuid, not its identifier
+  publicUrl: 'https://bugs.example.com', // asset links when an upload is refused
+});
+
+const github = createGithubTracker({
+  owner: 'acme',
+  repo: 'app',
+  token: process.env.GITHUB_TOKEN!, // PAT or app token with `issues: write`
+  labels: ['bugdeck'],              // put on every issue, and the poll filter
+  publicUrl: 'https://bugs.example.com', // screenshots are links: GitHub has no upload API
+});
+```
+
+|  | Plane | GitHub |
+|---|---|---|
+| Body | HTML, images inline | Markdown, images as links to `publicUrl/assets/:id` |
+| Comments | HTML, images inline again | Markdown |
+| Editing | `updateIssue` PATCHes name + description | `updateIssue` PATCHes title + body, marker kept |
+| Screenshots | uploaded as attachments | not uploaded — the REST API has none |
+| Idempotency | `external_id` on the create | a hidden `<!-- bugdeck:report:<id> -->` in the body, found by search |
+| Code | `DEMO-42`, read off the project | `#42`, the issue number |
+| States | the board's columns, matched by name then group | `open` → `doing`, `closed` → `done`, closed as *not planned* → `fail`; a `pending` or `review` **label** overrides (`stateLabels`) |
+| Polling | `listUpdates` over the project's issues | `listUpdates` over `since` + `labels`, Link-header paged |
+
+Replying to a reporter is the same gesture on both: write a comment that **starts with `@user`**.
+Nothing else on the tracker is ever shown to them — comments there routinely name other people's
+accounts. On GitHub that comment is Markdown and reaches the widget as written. Rename the marker
+with `publicReplyMarker` on either config.
+
+Both are optional: importing one is what ships it. A server that imports neither files nothing.
+
+### Writing an adapter
+
+```ts
+import { ok, fail, type IssueTracker } from '@aitofy/bugdeck-core';
+
+export function createMyTracker(config: MyConfig): IssueTracker {
+  return {
+    async createIssue(job) {
+      // job.descriptionHtml is a string, or a function to render again once
+      // your uploads have ids. job.externalSource + job.externalId are the
+      // idempotency key: a retry must adopt the issue, never file a second one.
+      return ok({ externalId: '42', code: 'MY-42' });
+    },
+    async addComment(externalId, html) {
+      return ok({ commentId: '…' });
+    },
+    // Optional. Omit uploadAttachment and the caller links the images instead;
+    // omit listUpdates and nothing polls; omit updateIssue and an edited report
+    // stays local; omit renderBody / renderComment and both are written as the
+    // plain HTML in `issue-body`.
+  };
+}
+```
+
+One adapter is one file plus one registration line. An adapter never reaches back into the server
+or the widget.
+
+### States
+
+Five, from the reporter's point of view: `pending · doing · review · done · fail`. `review` means
+the issue has been **fixed and the reporter is asked to confirm** — not that someone is still
+looking at it; any label you write for it has to say so. A report body is editable only while
+`pending`; a comment is allowed in every state, including `done`, because *"it is still broken"* is
+the most valuable message on the page and it always arrives late.
+
+### License
+
+MIT
+
+---
+
+# CONTRIBUTING.md
+
+## Contributing to bugdeck
+
+### Quick start
+
+```bash
+git clone https://github.com/aitofy-dev/bugdeck.git
+cd bugdeck
+pnpm install
+
+pnpm typecheck   # tsc --noEmit in every package
+pnpm test        # node --test through tsx
+pnpm lint        # eslint
+pnpm build       # tsc
+```
+
+All four must pass before you open a pull request. CI runs the same four on Node 20 and 22, and
+scans every commit with gitleaks — install it locally with `brew install gitleaks`.
+
+### Project structure
+
+```
+packages/
+├── core/      # @aitofy/bugdeck-core — pure: contract, blocks, titles, image sanitisation, rendering
+├── server/    # @aitofy/bugdeck-server — HTTP API, storage adapters, tracker wiring
+└── widget/    # @aitofy/bugdeck — the React widget
+examples/      # one runnable app per use case
+```
+
+`core` never imports `server` or `widget`. Anything that touches the filesystem, the network or a
+clock lives outside it.
+
+### Adding a tracker adapter: one file plus one registration line
+
+An adapter implements `IssueTracker` from `@aitofy/bugdeck-core` and lives in
+`packages/core/src/adapters/<name>/index.ts`. Implement only the methods your tracker supports;
+optional capabilities are optional methods.
+
+### Tests
+
+Tests are `node:test` run through `tsx`, next to the code they cover:
+
+```bash
+pnpm --filter @aitofy/bugdeck-core test
+```
+
+Test behavior, not implementation. Every bug fix ships with the test that would have caught it.
+
+### Code style
+
+- TypeScript strict, no `any`. Prefer discriminated unions so illegal states cannot be expressed.
+- 4-space indent in configuration, 2-space indent in source, single quotes, ES modules.
+- Comments explain *why*, in English, at most two lines. No dates, names or history.
+- Function under 30 lines, file under 300 lines.
+- Everything in this repository is English: code, comments, docs and default UI strings. The widget
+  takes a `strings` prop for translation.
+
+### Pull requests
+
+- Branch from `main`: `feat/...`, `fix/...`, `chore/...`.
+- Conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`.
+- Under 400 lines of diff, one idea per PR.
+- Docs change with the code, in the same PR: `README.md`, `llms.txt`, `CHANGELOG.md`.
+- `pnpm docs:llms` regenerates `llms-full.txt` from those sources; commit the result. CI fails a
+  pull request whose copy is stale.
+- CI must be green before merge.
+
+### License
+
+By contributing, you agree that your contributions are licensed under the MIT License.
+
+---
+
+# CHANGELOG.md
+
+## Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+### [Unreleased]
+
+### [0.2.0] - 2026-09-12
+
+A report stops being a one-way form. It can be edited while nobody has read it, commented on in
+every state, and the tracker now answers back: state changes and replies are polled down to the
+reporter. GitHub Issues is the second adapter.
+
+#### Added
+
+- **GitHub Issues adapter.** `TRACKER=github` with `GITHUB_OWNER`, `GITHUB_REPO`, `GITHUB_TOKEN`,
+  and optional `GITHUB_LABELS` / `GITHUB_API_URL`, or `createGithubTracker()` from
+  `@aitofy/bugdeck-core` if you mount the app yourself. The body is Markdown and the screenshots
+  are links back to `GET /assets/:id`, because the REST API has no attachment endpoint; the create
+  stays idempotent on a hidden `<!-- bugdeck:report:<id> -->` marker the search finds.
+- **`PATCH /reports/:id`** — rewrite a report while nobody has read it. Allowed only in `pending`;
+  anything later answers `409 {"error":"NOT_PENDING"}`, because silently changing the sentence an
+  admin planned from is how two people end up debugging different bugs. Images the report already
+  has are kept by id rather than re-uploaded, so the tracker recognises its own attachments instead
+  of collecting a second copy of every screenshot.
+- **`POST /reports/:id/comment`** — say something on a report in **every** state, `done` included.
+  "It is still broken" is the most valuable message on the page and it always arrives after the
+  item was closed. Capped at 20 messages from the user per report.
+- **Comments survive a tracker that is not ready.** The message is stored first and posted after,
+  on the same queue as the create — so one written while the issue was still being retried is
+  posted the moment the issue exists. Each is marked with the tracker's comment id, which is what
+  keeps a retry from saying it twice.
+- **The poll worker.** `createSyncWorker({tracker, store, intervalMs, onStateChange, onReply})`
+  reads the tracker every `POLL_INTERVAL` seconds (default 300, `0` disables) and carries the
+  answer back: the state moves, and a comment starting with `@user` becomes the reporter's reply
+  and a turn in their conversation. Everything else on the tracker stays internal. A reply is
+  stored once however many passes read it, one broken issue costs only itself, a tick that finds
+  the last one still running is dropped, and the watermark moves only after a pass that read the
+  whole list. `serve` starts one and takes the same two hooks; nothing here sends a notification.
+- **`PUBLIC_REPLY_MARKER`** renames the `@user` prefix, on both adapters and the worker at once.
+- **`IssueTracker` gained two optional members**, both backwards compatible: `updateIssue` rewrites
+  an issue when a report is edited, and `renderComment` lets an adapter decide what one message
+  looks like. Plane implements both — a comment gets its screenshots back as inline
+  `<image-component>` elements — and so does GitHub, whose edit keeps the hidden marker the dedupe
+  reads. A tracker with neither keeps the text the report was filed with and posts plain HTML.
+- **`FeedbackStore` gained three methods**: `markThreadMirrored` records that one thread entry
+  reached the tracker, `getReportByExternalId` is how the poller finds the report an issue belongs
+  to, and `getMeta`/`setMeta` hold the poll watermark. A store written against 0.1.0 needs them
+  added; the SQLite one migrates itself on open.
+- **`examples/express-mount`** — the app mounted inside an Express server and authenticated by that
+  server's own session, in one runnable file.
+- **Docs an agent can read.** `llms.txt` is the index, `llms-full.txt` is every document in the
+  repository as one file, regenerated by `pnpm docs:llms` and checked by CI. Each package now ships
+  its own `llms.txt` inside the tarball.
+
+#### Changed
+
+- **Required environment variables follow `TRACKER`.** A GitHub deployment needs no Plane values at
+  all, and a missing one is still an exit naming it.
+
+#### Removed
+
+- **`EditableTracker`** in `@aitofy/bugdeck-server`, and its `renderCommentHtml`. Core's
+  `IssueTracker` carries `updateIssue` itself now, so the wrapper had nothing left to add.
+
+### [0.1.0] - 2026-09-12
+
+First release. Three packages, published together: `@aitofy/bugdeck` (the React widget), `@aitofy/bugdeck-server`
+(the API) and `@aitofy/bugdeck-core` (the contract and the tracker adapters).
+
+#### Added
+
+- **The widget.** One import, one element, a floating "Report a bug" button:
+
+  ```tsx
+  <FeedbackWidget apiBase="http://localhost:3131" />
+  ```
+
+  It captures the page or **one element** (a devtools-style picker highlights what is under the
+  cursor and photographs exactly that box), opens a canvas editor over the shot — **pen, box,
+  arrow and a real crop** that cuts from the full-resolution image, with an Undo that covers the
+  crop too — and composes the report as **text and images interleaved**, in the order they were
+  written. Images also arrive by paste, drag-and-drop or upload.
+- **Drafts that survive a refresh.** Autosaved per page, restored with one line of notice; closing
+  the tab keeps them. ✕, Esc and a backdrop click all mean *hide and keep*; throwing a draft away
+  takes a deliberate Discard and one inline confirmation.
+- **Automatic context** on every report: URL, viewport with its device pixel ratio, user agent,
+  build commit, and the last API failure the host app saw before the report was filed.
+- **Theme and position as props.** `theme` (light/dark/auto), `accent`, `position`, `offset`,
+  `zIndex`. The look is ten CSS variables on the widget's own root; nothing leaks either way.
+- **Full translation through one object.** The server answers 4xx with a CODE, never a sentence, so
+  `strings` — including one line per error code — is the entire user-visible surface.
+- **The server.** `createFeedbackApp({ tracker, store, resolveUser })` returns a
+  [Hono](https://hono.dev) app that mounts anywhere, and `serve()` reads the environment and
+  listens. Routes: `POST /reports`, `GET /reports/mine`, `GET /reports/:id`, `GET /assets/:id`.
+- **`npx @aitofy/bugdeck-server`** and a Dockerfile + Compose file: four Plane variables and a volume.
+- **SQLite storage by default.** Reports in `reports.db` (WAL), pixels as files under
+  `STORAGE_PATH/assets/`. `FeedbackStore` is seven methods if you already have a database;
+  `createMemoryStore()` ships for tests.
+- **Your auth, not ours.** `resolveUser(request)` decides who is calling and `null` is a 401.
+  Someone else's report answers 404, not 403.
+- **Every upload is re-encoded** before it is stored: magic bytes, no SVG or GIF, a 5000×5000
+  ceiling, `nosniff` and an inline disposition on the way out. Ten images per report, 10 MB each,
+  ten reports per hour per user.
+- **Filing runs after the response.** A tracker that is slow or down never turns a filed bug into a
+  500; three retries with backoff, and the create is idempotent on `externalSource=bugdeck` plus the
+  report id, so a retry adopts the issue instead of filing a second one.
+- **Plane adapter.** Issue create with inline screenshots (`<image-component>`, the same asset ids
+  the attachment upload returns, so the pictures are attachments as well), the three-step attachment
+  flow with name-based dedupe, board columns discovered by group with a `PLANE_STATE_MAP` override,
+  and comment reading for the conversation sync.
+- **`IssueTracker` is the seam.** Two required methods, the rest optional; failures are values
+  (`Result<T>`), never throws. An adapter that renders its own markup supplies `renderBody`;
+  everything else is filed as the plain HTML in `@aitofy/bugdeck-core`.
+- **`@aitofy/bugdeck-core/contract`** — a browser-safe entry point with the wire contract, block parsing,
+  derived titles and thread folding, so a bundler following it never reaches `sharp`.
+- **Examples.** `examples/vite-react` is the dashboard in the README's GIF (and the page the pixel
+  test for the element picker runs against); `examples/server-plane` is the server in one file.
+
+[0.2.0]: https://github.com/aitofy-dev/bugdeck/releases/tag/v0.2.0
+[0.1.0]: https://github.com/aitofy-dev/bugdeck/releases/tag/v0.1.0

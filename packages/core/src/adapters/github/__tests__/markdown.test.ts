@@ -10,12 +10,13 @@ import {
   commentMarkdown,
   escapeMarkdown,
   githubBody,
+  githubCommentBody,
   hasAnyMarker,
   hasMarker,
   markerFor,
   withMarker,
 } from '../markdown.js';
-import { bodyInput } from './fake-github.js';
+import { bodyInput, CONFIG } from './fake-github.js';
 
 test('a report renders as who, what, where, marker', () => {
   const body = githubBody(
@@ -107,4 +108,31 @@ test('a comment rendered as HTML for another tracker arrives as text', () => {
   );
   // Markdown written for GitHub is passed through untouched.
   assert.equal(commentMarkdown('@user fixed in 1.2.0'), '@user fixed in 1.2.0');
+});
+
+test('a message from the reporter is Markdown, images linked back to us', () => {
+  const body = githubCommentBody(
+    {
+      text: 'still broken',
+      blocks: [
+        { kind: 'text', text: 'still broken on *every* page' },
+        { kind: 'image', assetId: 'a1' },
+      ],
+      assetIds: ['a1'],
+    },
+    CONFIG.publicUrl,
+  );
+
+  assert.ok(body.startsWith('*Reporter said:*'));
+  assert.ok(body.includes('![](https://app.example/assets/a1)'));
+  // The user's own asterisks are text, not emphasis.
+  assert.ok(body.includes('every'));
+  assert.ok(!body.includes('on *every* page'));
+});
+
+test('a message keeps a screenshot the layout never mentioned', () => {
+  const body = githubCommentBody({ text: 'see attached', blocks: [], assetIds: ['a1'] }, CONFIG.publicUrl);
+
+  assert.ok(body.includes('![](https://app.example/assets/a1)'));
+  assert.ok(body.includes('see attached'));
 });

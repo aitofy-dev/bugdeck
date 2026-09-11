@@ -9,6 +9,10 @@ user clicks 🐞 → modal (block editor) → POST {apiBase}/reports (multipart)
                                             └→ @aitofy/bugdeck-server → tracker issue
 ```
 
+AI agents: `llms.txt` ships next to this file in the tarball, and
+[`llms-full.txt`](https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/llms-full.txt) is the
+whole project — widget, server, core — in one document.
+
 ## Install
 
 ```sh

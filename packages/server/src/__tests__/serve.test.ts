@@ -134,4 +134,38 @@ describe('serve', () => {
     assert.equal(!result.ok && result.message.includes('done'), true);
     plane.close();
   });
+
+  it('boots on GitHub without a Plane and without a column map', async () => {
+    const { logger, lines } = recordingLogger();
+    const result = await serve({
+      logger,
+      env: {
+        TRACKER: 'github',
+        GITHUB_OWNER: 'acme',
+        GITHUB_REPO: 'app',
+        GITHUB_TOKEN: 'ghp_test',
+        STORAGE_PATH: storagePath,
+        PORT: String(await freePort()),
+        // A poller that fired here would spend a real request on api.github.com.
+        POLL_INTERVAL: '0',
+      },
+    });
+
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.value.states, null);
+      await result.value.close();
+    }
+    assert.equal(
+      lines.some((line) => line.meta?.tracker === 'github'),
+      true,
+    );
+  });
+
+  it('names the GitHub variables when TRACKER=github and they are missing', async () => {
+    const result = await serve({ env: { TRACKER: 'github' }, logger: recordingLogger().logger });
+
+    assert.equal(result.ok, false);
+    assert.equal(!result.ok && result.message.includes('GITHUB_OWNER'), true);
+  });
 });

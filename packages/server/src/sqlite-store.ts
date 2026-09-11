@@ -79,7 +79,21 @@ CREATE INDEX assets_by_report ON assets (report_id);
  * old database upgrades it and opening a new one is a no-op. One entry today;
  * the next schema change appends to this array and never edits `SCHEMA`.
  */
-const MIGRATIONS: readonly string[] = [SCHEMA];
+/**
+ * The watermark the poll worker resumes from, and the lookup it resumes with.
+ * `external_id` is read once per polled issue, which is a table scan per tick
+ * without the index.
+ */
+const SYNC_SCHEMA = `
+CREATE INDEX reports_by_external ON reports (external_id);
+CREATE TABLE meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+`;
+
+const MIGRATIONS: readonly string[] = [SCHEMA, SYNC_SCHEMA];
 
 function migrate(db: SqliteDatabase): void {
   const version = db.pragma('user_version', { simple: true }) as number;
@@ -113,8 +127,16 @@ export function createSqliteStore(options: SqliteStoreOptions): SqliteFeedbackSt
        .join(', ')}`,
   );
   const selectOne = db.prepare(`SELECT ${COLUMNS} FROM reports WHERE id = ?`);
+  const selectByExternal = db.prepare(
+    `SELECT ${COLUMNS} FROM reports WHERE external_id = ? LIMIT 1`,
+  );
   const selectByOwner = db.prepare(
     `SELECT ${COLUMNS} FROM reports WHERE owner_id = ? ORDER BY created_at DESC LIMIT ?`,
+  );
+  const readMeta = db.prepare('SELECT value FROM meta WHERE key = ?');
+  const writeMeta = db.prepare(
+    `INSERT INTO meta (key, value, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
   );
   const insertAsset = db.prepare(
     `INSERT INTO assets (id, report_id, mime, width, height, byte_length, created_at)
@@ -143,6 +165,11 @@ export function createSqliteStore(options: SqliteStoreOptions): SqliteFeedbackSt
 
     async getReport(id: string): Promise<StoredReport | null> {
       return read(id);
+    },
+
+    async getReportByExternalId(externalId: string): Promise<StoredReport | null> {
+      const row = selectByExternal.get(externalId) as ReportRow | undefined;
+      return row ? rowToReport(row) : null;
     },
 
     async listReportsByUser(ownerId: string, limit: number): Promise<StoredReport[]> {
@@ -206,6 +233,14 @@ export function createSqliteStore(options: SqliteStoreOptions): SqliteFeedbackSt
         // would turn one lost screenshot into a 500 on the whole report page.
         return null;
       }
+    },
+
+    async getMeta(key: string): Promise<string | null> {
+      return (readMeta.get(key) as { value: string } | undefined)?.value ?? null;
+    },
+
+    async setMeta(key: string, value: string): Promise<void> {
+      writeMeta.run(key, value, new Date().toISOString());
     },
 
     close(): void {

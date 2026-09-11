@@ -33,12 +33,12 @@ import {
   parseFeedbackBlocks,
   FEEDBACK_MAX_COMMENTS,
   type ErrorCode,
+  type IssueTracker,
   type Logger,
   type SanitizedImage,
 } from '@aitofy/bugdeck-core';
 import { commentOnReport, editReport, type AmendContext } from './amend-report.js';
 import { createIssueBridge } from './bridge.js';
-import type { EditableTracker } from './editable-tracker.js';
 import { maxBodyBytes, resolveLimits, type FeedbackLimits } from './limits.js';
 import { createRateLimiter } from './rate-limit.js';
 import { toReportDto, userTurnCount } from './report-record.js';
@@ -46,7 +46,7 @@ import { readSubmission, type ParsedForm, type Submission } from './submission.j
 import type { FeedbackStore, FeedbackUser, StoredReport } from './store.js';
 
 export interface FeedbackAppOptions {
-  tracker: EditableTracker;
+  tracker: IssueTracker;
   store: FeedbackStore;
   /**
    * The host's auth, as a function. `null` is a 401 — this package never

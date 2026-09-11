@@ -47,6 +47,11 @@ export interface PlaneConfig {
    * the `override` argument of `resolveStateMap`.
    */
   stateMap?: Partial<Record<FeedbackState, string>>;
+  /**
+   * The prefix that makes a comment on this board visible to the reporter.
+   * Defaults to `@user`; the poll worker reads comments back with it.
+   */
+  publicReplyMarker?: string;
   /** Injectable seam: swap it in a test, or wrap it for a proxy. */
   fetch?: typeof fetch;
   logger?: Logger;

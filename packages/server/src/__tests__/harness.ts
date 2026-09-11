@@ -3,9 +3,14 @@
  * network, and an app wired to a memory store.
  */
 import sharp from 'sharp';
-import { ok, silentLogger, type CreateIssueJob } from '@aitofy/bugdeck-core';
+import {
+  ok,
+  silentLogger,
+  type CreateIssueJob,
+  type IssueTracker,
+  type IssueUpdateInput,
+} from '@aitofy/bugdeck-core';
 import { createFeedbackApp } from '../app.js';
-import type { EditableTracker, IssueUpdateInput } from '../editable-tracker.js';
 import { createMemoryStore } from '../memory-store.js';
 import type { FeedbackStore, FeedbackUser } from '../store.js';
 
@@ -26,7 +31,7 @@ export interface FakeComment {
 }
 
 export interface FakeTracker {
-  tracker: EditableTracker;
+  tracker: IssueTracker;
   calls: CreateIssueJob[];
   comments: FakeComment[];
   updates: Array<{ externalId: string; input: IssueUpdateInput }>;

@@ -13,23 +13,25 @@
  */
 import {
   attachmentName,
-  assetLinksHtml,
-  textBlock,
+  type CommentBodyRenderer,
   type IssueBodyRenderer,
+  type IssueTracker,
   type Logger,
   type Result,
+  type TrackerAttachments,
+  type TrackerBody,
 } from '@aitofy/bugdeck-core';
-import type { EditableTracker } from './editable-tracker.js';
 import { buildCreateIssueJob } from './issue-job.js';
 import type { FeedbackStore, StoredAsset, StoredThreadEntry } from './store.js';
 
 export interface MirrorDeps {
-  tracker: EditableTracker;
+  tracker: IssueTracker;
   store: FeedbackStore;
   logger: Logger;
   /** Base for auth-scoped asset links, used for images the tracker would not take. */
   publicUrl: string;
   renderBody: IssueBodyRenderer;
+  renderComment: CommentBodyRenderer;
 }
 
 /** A missing screenshot costs the issue one picture, never the issue. */
@@ -48,50 +50,38 @@ export async function loadAssets(
 }
 
 /**
- * One message as issue HTML, through the same helpers the body uses.
- *
- * Images are attachments rather than inline markup: the tracker seam has no
- * way to say "render an image" yet, and an attachment is visible on every
- * tracker while a guessed element is visible on none. Whatever the upload
- * refused becomes an auth-scoped link, so nothing is silently dropped.
+ * What the tracker is now holding itself: file name → its own asset id. Empty
+ * on a tracker with no attachment API, which is what turns every screenshot in
+ * the rendered comment into an auth-scoped link instead.
  */
-export function renderCommentHtml(
-  entry: StoredThreadEntry,
-  publicUrl: string,
-  unattached: readonly string[],
-): string {
-  const body = (entry.blocks ?? [])
-    .filter((block) => block.kind === 'text')
-    .map((block) => `<p>${textBlock(block.text)}</p>`);
-  if (!body.length) body.push(`<p>${textBlock(entry.text)}</p>`);
-
-  return ['<p><em>Reporter said:</em></p>', ...body, assetLinksHtml(publicUrl, unattached, 'images (sign in to view)')]
-    .filter(Boolean)
-    .join('');
-}
-
-/** The ids the tracker is now holding itself. Empty on a tracker with no uploads. */
 async function attachImages(
   deps: MirrorDeps,
   externalId: string,
   assets: readonly StoredAsset[],
-): Promise<Set<string>> {
+): Promise<Map<string, string>> {
   const upload = deps.tracker.uploadAttachment?.bind(deps.tracker);
-  const attached = new Set<string>();
-  if (!upload) return attached;
+  const assetIdByFileName = new Map<string, string>();
+  if (!upload) return assetIdByFileName;
 
   for (const asset of assets) {
-    const result = await upload(externalId, {
-      name: attachmentName(asset.id),
-      mime: asset.mime,
-      bytes: asset.bytes,
-    });
-    if (result.ok) attached.add(asset.id);
+    const name = attachmentName(asset.id);
+    const result = await upload(externalId, { name, mime: asset.mime, bytes: asset.bytes });
+    if (result.ok) assetIdByFileName.set(name, result.value.assetId);
     else deps.logger.warn('bugdeck comment image not attached', { assetId: asset.id, err: result.error.message });
   }
-  return attached;
+  return assetIdByFileName;
 }
 
+const renderBody = (body: TrackerBody, attachments: TrackerAttachments): string =>
+  typeof body === 'string' ? body : body(attachments);
+
+/**
+ * One message, in the markup its tracker understands.
+ *
+ * The images are offered to the tracker FIRST and the renderer is told which
+ * of them landed: Plane puts its own ids inline, and whatever was refused
+ * becomes an auth-scoped link rather than vanishing.
+ */
 async function postComment(
   deps: MirrorDeps,
   reportId: string,
@@ -99,9 +89,13 @@ async function postComment(
   entry: StoredThreadEntry,
 ): Promise<Result<{ commentId: string }>> {
   const assets = await loadAssets(deps, reportId, entry.assetIds);
-  const attached = await attachImages(deps, externalId, assets);
-  const unattached = entry.assetIds.filter((assetId) => !attached.has(assetId));
-  return deps.tracker.addComment(externalId, renderCommentHtml(entry, deps.publicUrl, unattached));
+  const assetIdByFileName = await attachImages(deps, externalId, assets);
+  const body = deps.renderComment({
+    text: entry.text,
+    blocks: entry.blocks ?? [],
+    assetIds: entry.assetIds,
+  });
+  return deps.tracker.addComment(externalId, renderBody(body, { assetIdByFileName, uploaded: true }));
 }
 
 /**

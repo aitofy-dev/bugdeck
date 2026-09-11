@@ -27,6 +27,7 @@ const clone = <T>(value: T): T => structuredClone(value);
 export function createMemoryStore(): FeedbackStore {
   const reports = new Map<string, StoredReport>();
   const assets = new Map<string, StoredAsset>();
+  const meta = new Map<string, string>();
 
   return {
     async createReport(input: NewReport): Promise<StoredReport> {
@@ -37,6 +38,11 @@ export function createMemoryStore(): FeedbackStore {
 
     async getReport(id: string): Promise<StoredReport | null> {
       const found = reports.get(id);
+      return found ? clone(found) : null;
+    },
+
+    async getReportByExternalId(externalId: string): Promise<StoredReport | null> {
+      const found = [...reports.values()].find((report) => report.externalId === externalId);
       return found ? clone(found) : null;
     },
 
@@ -72,6 +78,14 @@ export function createMemoryStore(): FeedbackStore {
     async getAsset(id: string): Promise<StoredAsset | null> {
       const found = assets.get(id);
       return found ? { ...found, bytes: new Uint8Array(found.bytes) } : null;
+    },
+
+    async getMeta(key: string): Promise<string | null> {
+      return meta.get(key) ?? null;
+    },
+
+    async setMeta(key: string, value: string): Promise<void> {
+      meta.set(key, value);
     },
   };
 }

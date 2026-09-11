@@ -21,6 +21,28 @@ importers:
         specifier: ^8.18.0
         version: 8.70.0(eslint@9.39.5)(typescript@5.9.3)
 
+  examples/express-mount:
+    dependencies:
+      '@aitofy/bugdeck-core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@aitofy/bugdeck-server':
+        specifier: workspace:*
+        version: link:../../packages/server
+      '@hono/node-server':
+        specifier: ^1.13.7
+        version: 1.19.17(hono@4.13.7)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.2
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.13
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
   examples/server-plane:
     dependencies:
       '@aitofy/bugdeck-server':

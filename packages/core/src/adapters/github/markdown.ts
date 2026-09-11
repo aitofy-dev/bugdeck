@@ -6,9 +6,9 @@
  * value is ESCAPED: a description able to write `#` or `<!--` could forge the
  * header lines triage reads and the marker the dedupe looks for.
  */
-import type { FeedbackApiError } from '../../contract.js';
+import type { FeedbackApiError, FeedbackBlock } from '../../contract.js';
 import { formatViewport } from '../../issue-body.js';
-import type { IssueBodyInput } from '../../tracker.js';
+import type { CommentBodyInput, IssueBodyInput } from '../../tracker.js';
 
 /** Inline constructs: code, emphasis, links, images, raw HTML, tables. */
 const MARKDOWN_INLINE = /[\\`*_[\]<>|~]/g;
@@ -55,6 +55,17 @@ export function withMarker(body: string, externalId: string): string {
   return hasMarker(body, externalId) ? body : `${body.trimEnd()}\n\n${markerFor(externalId)}`;
 }
 
+/**
+ * The marker comment as it stands in an issue body we did not render.
+ *
+ * An edit rewrites the whole body, and a rewrite that drops the marker files a
+ * duplicate issue on the next retry — so the old one is read back and carried
+ * over whenever the new text has none of its own.
+ */
+export function readMarker(body: string | null | undefined): string | null {
+  return /<!-- bugdeck:report:[\w.:-]+ -->/.exec(body ?? '')?.[0] ?? null;
+}
+
 // ─── the report ──────────────────────────────────────────────────
 
 function apiErrorText(error: FeedbackApiError): string {
@@ -92,10 +103,15 @@ function imageMarkdown(publicUrl: string, assetId: string): string {
 }
 
 /** The user's own text and images, in the order they wrote them. */
-function bodyParts(job: IssueBodyInput, publicUrl: string): string[] {
+function contentParts(
+  text: string,
+  blocks: readonly FeedbackBlock[],
+  assetIds: readonly string[],
+  publicUrl: string,
+): string[] {
   const parts: string[] = [];
   const shown = new Set<string>();
-  for (const block of job.blocks ?? []) {
+  for (const block of blocks) {
     if (block.kind === 'text') {
       parts.push(escapeMarkdown(block.text));
       continue;
@@ -103,9 +119,9 @@ function bodyParts(job: IssueBodyInput, publicUrl: string): string[] {
     shown.add(block.assetId);
     parts.push(imageMarkdown(publicUrl, block.assetId));
   }
-  if (!parts.filter(Boolean).length) parts.push(escapeMarkdown(job.description));
+  if (!parts.filter(Boolean).length) parts.push(escapeMarkdown(text));
   // Screenshots the layout never referenced still belong on the issue.
-  for (const assetId of job.assetIds) {
+  for (const assetId of assetIds) {
     if (!shown.has(assetId)) parts.push(imageMarkdown(publicUrl, assetId));
   }
   return parts;
@@ -119,7 +135,8 @@ function bodyParts(job: IssueBodyInput, publicUrl: string): string[] {
  * there is nothing a second render pass could change.
  */
 export function githubBody(job: IssueBodyInput, publicUrl = ''): string {
-  return [whoLine(job), ...bodyParts(job, publicUrl), whereLine(job), markerFor(job.reportId)]
+  const body = contentParts(job.description, job.blocks ?? [], job.assetIds, publicUrl);
+  return [whoLine(job), ...body, whereLine(job), markerFor(job.reportId)]
     .filter(Boolean)
     .join('\n\n');
 }
@@ -158,4 +175,17 @@ function htmlToText(html: string): string {
  */
 export function commentMarkdown(body: string): string {
   return LOOKS_LIKE_HTML.test(body) ? escapeMarkdown(htmlToText(body)) : body;
+}
+
+/**
+ * One message from the reporter, as Markdown.
+ *
+ * No attachment API and therefore no second render pass: every screenshot is a
+ * link back to our own asset route, which needs a signed-in browser — and
+ * without a public URL there is nothing honest to print, so it goes unmentioned.
+ */
+export function githubCommentBody(input: CommentBodyInput, publicUrl = ''): string {
+  return ['*Reporter said:*', ...contentParts(input.text, input.blocks, input.assetIds, publicUrl)]
+    .filter(Boolean)
+    .join('\n\n');
 }

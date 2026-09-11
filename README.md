@@ -9,7 +9,10 @@
 [![Self-hosted](https://img.shields.io/badge/Self--hosted-%E2%9C%93-green.svg)](https://github.com/aitofy-dev/bugdeck)
 [![Zero telemetry](https://img.shields.io/badge/Telemetry-none-blue.svg)](#zero-telemetry)
 
-**v0.1 ships the Plane adapter.** GitHub and Linear are the next two files — see [Roadmap](#roadmap).
+Reading this as an AI agent? [`llms.txt`](./llms.txt) is the index; [`llms-full.txt`](./llms-full.txt)
+is every document in this repository as one file. See [For AI coding agents](#for-ai-coding-agents).
+
+**v0.2 ships the Plane and GitHub adapters.** Linear is next — see [Roadmap](#roadmap).
 
 ![A user opening bugdeck, capturing the page, boxing the broken row and sending the report](docs/demo.gif)
 
@@ -33,7 +36,7 @@ with **your** auth in front of them.
 | Element picker | ✓ | ✓ | ✓ | ✓ | ? | **✓** |
 | Drafts survive a refresh | ? | ? | ? | ? | ? | **✓ one per page** |
 | Plane | ✗ | ✗ | ✗ | ✗ | ✗ | **✓** |
-| GitHub | ✓ | ✓ | ✓ | ✓ | ✓ | *planned* |
+| GitHub | ✓ | ✓ | ✓ | ✓ | ✓ | **✓** |
 | Linear | ✓ | ✓ | ✓ | ✓ | ✓ | *planned* |
 
 Prices are the published entry tiers at the time of writing. `?` means the vendor does not document
@@ -65,8 +68,17 @@ PLANE_PROJECT_ID=00000000-0000-0000-0000-000000000000 \
 npx @aitofy/bugdeck-server
 ```
 
-It resolves your board's columns, prints the map, and listens on `:3131`. Reports are SQLite rows
-and PNGs on disk; the issue appears in Plane a second after the user presses Send.
+Or GitHub Issues, three variables instead of four:
+
+```bash
+TRACKER=github GITHUB_OWNER=acme GITHUB_REPO=app \
+GITHUB_TOKEN=ghp_xxxxxxxx \
+npx @aitofy/bugdeck-server
+```
+
+Either way it listens on `:3131` — with Plane it resolves your board's columns and prints the map
+first. Reports are SQLite rows and PNGs on disk; the issue appears in the tracker a second after
+the user presses Send.
 
 Already have a server? Mount the app in it and keep your own auth — four lines, in
 [`@aitofy/bugdeck-server`](./packages/server/README.md#30-seconds). Docker Compose and every environment
@@ -110,6 +122,13 @@ idempotent, so a retry adopts the issue instead of duplicating it.
 - **Rate limited** to 10 writes per hour per user, in memory, no Redis.
 - **Codes, never sentences.** A 4xx answers `{"error":"RATE_LIMITED"}` so the wording — and the
   language — stays in the widget.
+
+## Replying to the reporter
+
+The server reads the tracker back every `POLL_INTERVAL` seconds and the issue's state follows the
+report. A comment that starts with `@user` is carried down to the reporter as a reply in their own
+thread; **every other comment stays internal**, so the board is still where your team argues. The
+marker is `PUBLIC_REPLY_MARKER` and renaming it changes both halves at once.
 
 ## Shopify / WordPress
 
@@ -165,16 +184,16 @@ be overridden on its own. Every key is listed in
 | [`@aitofy/bugdeck-server`](https://www.npmjs.com/package/@aitofy/bugdeck-server) | The HTTP API: stores reports, files them into a tracker. | [README](./packages/server/README.md) |
 | [`@aitofy/bugdeck-core`](https://www.npmjs.com/package/@aitofy/bugdeck-core) | The contract both speak, and the `IssueTracker` seam. | [README](./packages/core/README.md) |
 
-Runnable examples: [`examples/vite-react`](./examples/vite-react) (the app in the GIF) and
-[`examples/server-plane`](./examples/server-plane) (the server, in one file).
+Runnable examples: [`examples/vite-react`](./examples/vite-react) (the app in the GIF),
+[`examples/server-plane`](./examples/server-plane) (the server, in one file) and
+[`examples/express-mount`](./examples/express-mount) (the app mounted in an Express server, using its
+session).
 
 ## Roadmap
 
-- **GitHub Issues adapter** — the next release. One file, same seam.
-- **Linear adapter.**
-- **Conversation sync** — tracker comments starting with `@user` come back to the reporter as a
-  thread, and their replies go back up.
+- **Linear adapter** — the next release. One file, same seam.
 - **`<script>` embed** — a bundled build for pages with no React of their own.
+- **Mongo and Postgres stores** — `FeedbackStore` is already the seam; SQLite is only the default.
 
 One adapter is one file plus one registration line: [how to write one](./CONTRIBUTING.md#adding-a-tracker-adapter-one-file-plus-one-registration-line).
 
@@ -183,6 +202,22 @@ One adapter is one file plus one registration line: [how to write one](./CONTRIB
 No analytics, no phone-home, no network call you did not ask for. The only host this software talks
 to is the tracker you configured. Nothing is logged that a proxy password or a user's email could
 leak through.
+
+## For AI coding agents
+
+- **Everything in one file:** [`llms-full.txt`](./llms-full.txt) — this README, all three package
+  READMEs, `CONTRIBUTING.md` and `CHANGELOG.md`, concatenated. Fetch that one and you have the lot.
+- **Changing this repository:** [`AGENTS.md`](./AGENTS.md) is the rulebook, and CI enforces it.
+- **The types are the docs.** `@aitofy/bugdeck-core/contract` is the browser-safe wire contract both
+  halves import, and every public option carries its JSDoc — an editor with types needs no prose.
+
+Three prompts worth pasting into Cursor, Claude Code or Copilot as they are:
+
+```text
+Add the bugdeck widget to my Vite React app pointing at http://localhost:3131
+Mount @aitofy/bugdeck-server inside my Express app with my session auth
+Translate the widget strings to <language>
+```
 
 ## Contributing
 

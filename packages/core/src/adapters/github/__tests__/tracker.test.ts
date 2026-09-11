@@ -11,8 +11,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { silentLogger, type CreateIssueJob } from '../../../tracker.js';
 import { createGithubTracker } from '../index.js';
-import { markerFor } from '../markdown.js';
-import { CONFIG, fakeGithub, NO_RECENT_ISSUES, NO_SEARCH_HIT, type Route } from './fake-github.js';
+import { githubBody, markerFor } from '../markdown.js';
+import { bodyInput, CONFIG, fakeGithub, NO_RECENT_ISSUES, NO_SEARCH_HIT, type Route } from './fake-github.js';
 
 function job(over: Partial<CreateIssueJob> = {}): CreateIssueJob {
   return {
@@ -205,4 +205,54 @@ test('HTML from another tracker’s renderer arrives as text, not as tags', asyn
   const body = (github.calls[0].body as { body: string }).body;
   assert.ok(!body.includes('<p>'));
   assert.ok(body.includes('still broken'));
+});
+
+// ─── editing ─────────────────────────────────────────────────────
+
+test('an edit PATCHes the title and the body, marker intact', async () => {
+  const github = fakeGithub({ 'PATCH /issues/7': () => [200, { number: 7 }] });
+  const out = await tracker(github.impl).tracker.updateIssue?.('7', {
+    title: 'The Send button still does nothing',
+    descriptionHtml: githubBody(bodyInput({ description: 'now on every page' }), CONFIG.publicUrl),
+    images: [],
+  });
+
+  assert.equal(out?.ok, true);
+  const call = github.calls[0];
+  assert.equal(call.method, 'PATCH');
+  assert.ok(call.url.endsWith('/repos/acme/app/issues/7'));
+  const body = call.body as { title: string; body: string };
+  assert.equal(body.title, 'The Send button still does nothing');
+  // Losing the marker files a second issue on the next retry.
+  assert.ok(body.body.endsWith(markerFor('report-1')));
+  assert.ok(body.body.includes('now on every page'));
+});
+
+test('an edit rendered by someone else keeps the marker the issue already had', async () => {
+  const github = fakeGithub({
+    'GET /issues/7': () => [200, { number: 7, body: `old text\n\n${markerFor('report-1')}` }],
+    'PATCH /issues/7': () => [200, { number: 7 }],
+  });
+  const out = await tracker(github.impl).tracker.updateIssue?.('7', {
+    title: 'Rewritten elsewhere',
+    descriptionHtml: 'a body with no marker of its own',
+    images: [],
+  });
+
+  assert.equal(out?.ok, true);
+  const patch = github.calls.find((call) => call.method === 'PATCH');
+  assert.ok(String((patch?.body as { body: string }).body).endsWith(markerFor('report-1')));
+});
+
+test('a rejected edit comes back as a value, not a throw', async () => {
+  const github = fakeGithub({ 'PATCH /issues/7': () => [404, { message: 'Not Found' }] });
+  const out = await tracker(github.impl).tracker.updateIssue?.('7', {
+    title: 'gone',
+    descriptionHtml: githubBody(bodyInput(), CONFIG.publicUrl),
+    images: [],
+  });
+
+  assert.equal(out?.ok, false);
+  assert.equal(out?.ok === false && out.error.status, 404);
+  assert.equal(out?.ok === false && out.error.retryable, false);
 });

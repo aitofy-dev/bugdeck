@@ -20,7 +20,7 @@
 import type { FeedbackState } from '../../contract.js';
 import type { TrackerUpdate } from '../../tracker.js';
 import { newAdminEntries, type ThreadEntryLike } from '../../thread.js';
-import { collectUserReplies } from './reply.js';
+import { collectUserReplies, PUBLIC_REPLY_MARKER } from './reply.js';
 
 /** One report the poller is allowed to touch, as read out of the store. */
 export interface SyncCandidate {
@@ -103,12 +103,13 @@ const NOTHING: Omit<SyncDecision, 'patch'> = {
  *
  * `update` is undefined when the board no longer has the issue. `now` is passed
  * in rather than read so a pass is reproducible and a test does not have to
- * guess what the clock did.
+ * guess what the clock did. `marker` is the operator's, defaulting to `@user`.
  */
 export function decideReportPatch(
   candidate: SyncCandidate,
   update: TrackerUpdate | undefined,
   now: Date,
+  marker: string = PUBLIC_REPLY_MARKER,
 ): SyncDecision {
   if (!update) return { ...NOTHING, orphaned: true };
 
@@ -126,7 +127,7 @@ export function decideReportPatch(
   // this list, so the two can be treated alike without losing anything.
   if (!update.comments) return decision;
 
-  const replies = collectUserReplies(update.comments);
+  const replies = collectUserReplies(update.comments, marker);
 
   // Everything the admin has said that is not in the thread yet. Adding is the
   // only operation: a reply stored once stays stored even if the tracker later

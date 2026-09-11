@@ -17,6 +17,7 @@ import {
   ok,
   type CreateIssueJob,
   type IssueTracker,
+  type IssueUpdateInput,
   type TrackerAttachments,
   type TrackerBody,
   type TrackerError,
@@ -33,12 +34,21 @@ import {
   type GithubConfig,
   type GithubHttp,
 } from './client.js';
-import { commentMarkdown, githubBody, hasMarker, markerTerm, withMarker } from './markdown.js';
+import {
+  commentMarkdown,
+  githubBody,
+  githubCommentBody,
+  hasAnyMarker,
+  hasMarker,
+  markerTerm,
+  readMarker,
+  withMarker,
+} from './markdown.js';
 import { readUpdates, type GithubIssueRow } from './updates.js';
 
 export type { GithubConfig } from './client.js';
 export { GithubHttpError } from './client.js';
-export { escapeMarkdown, githubBody, markerFor } from './markdown.js';
+export { escapeMarkdown, githubBody, githubCommentBody, markerFor } from './markdown.js';
 export { mapIssueState, parseGithubDate } from './updates.js';
 
 /** GitHub holds no attachments, so a body is rendered once and never again. */
@@ -120,6 +130,27 @@ async function postIssue(http: GithubHttp, job: CreateIssueJob): Promise<number>
   return created.data.number;
 }
 
+/**
+ * The rewritten body, still carrying the marker the dedupe reads.
+ *
+ * Our own renderer puts it there. A host that brings its own does not, and a
+ * rewrite that dropped it would file a duplicate issue on the next retry — so
+ * the marker standing in the issue today is read back and carried over.
+ */
+async function withExistingMarker(
+  http: GithubHttp,
+  issueNumber: string,
+  body: string,
+): Promise<string> {
+  if (hasAnyMarker(body)) return body;
+  const current = await githubApi<GithubIssueRow>(
+    http,
+    repoPath(http.config, `/issues/${issueNumber}`),
+  );
+  const marker = readMarker(current.data.body);
+  return marker ? `${body.trimEnd()}\n\n${marker}` : body;
+}
+
 export function createGithubTracker(config: GithubConfig): IssueTracker {
   const http = resolveHttp(config);
 
@@ -177,6 +208,26 @@ export function createGithubTracker(config: GithubConfig): IssueTracker {
           });
         }
         return ok({ commentId: String(created.data.id) });
+      } catch (err) {
+        return fail(toTrackerError(err));
+      }
+    },
+
+    /** Markdown here too: the REST API renders comments the same way. */
+    renderComment(input) {
+      return githubCommentBody(input, config.publicUrl ?? '');
+    },
+
+    async updateIssue(externalId, input: IssueUpdateInput) {
+      try {
+        const body = await withExistingMarker(http, externalId, render(input.descriptionHtml));
+        await withRetries(http, 'issue.update', () =>
+          githubApi(http, repoPath(config, `/issues/${externalId}`), {
+            method: 'PATCH',
+            body: { title: input.title, body },
+          }),
+        );
+        return ok(undefined);
       } catch (err) {
         return fail(toTrackerError(err));
       }

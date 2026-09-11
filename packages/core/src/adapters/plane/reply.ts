@@ -9,9 +9,9 @@
 import type { TrackerComment } from '../../tracker.js';
 
 /**
- * The marker that makes a comment public. Everything else on the board stays
- * internal, which is the whole point: comments there routinely name accounts
- * belonging to other people.
+ * The marker that makes a comment public, unless the operator renames it.
+ * Everything else on the board stays internal, which is the whole point:
+ * comments there routinely name accounts belonging to other people.
  */
 export const PUBLIC_REPLY_MARKER = '@user';
 
@@ -46,12 +46,15 @@ export function stripHtml(html: string): string {
  * — bolding the marker does not un-mean it. The marker itself is removed; the
  * user has no idea what `@user` refers to.
  */
-export function parseUserReply(commentHtml: string | null | undefined): string | null {
+export function parseUserReply(
+  commentHtml: string | null | undefined,
+  marker: string = PUBLIC_REPLY_MARKER,
+): string | null {
   if (!commentHtml) return null;
   const text = stripHtml(commentHtml);
-  if (!text.toLowerCase().startsWith(PUBLIC_REPLY_MARKER)) return null;
+  if (!text.toLowerCase().startsWith(marker.toLowerCase())) return null;
   const body = text
-    .slice(PUBLIC_REPLY_MARKER.length)
+    .slice(marker.length)
     .replace(/^[\s:,-]+/, '')
     .trim();
   // The marker alone is a mis-send, not an empty reply worth notifying about.
@@ -77,11 +80,14 @@ export interface UserReply {
  * dropped — the words matter more than the minute, and the caller stamps a real
  * time when it stores one.
  */
-export function collectUserReplies(comments: readonly TrackerComment[]): UserReply[] {
+export function collectUserReplies(
+  comments: readonly TrackerComment[],
+  marker: string = PUBLIC_REPLY_MARKER,
+): UserReply[] {
   const replies: Array<{ reply: UserReply; at: number }> = [];
 
   for (const comment of comments) {
-    const text = parseUserReply(comment?.html);
+    const text = parseUserReply(comment?.html, marker);
     if (!text) continue;
     const at = comment.createdAt?.getTime() ?? NaN;
     replies.push({
@@ -103,8 +109,11 @@ export function collectUserReplies(comments: readonly TrackerComment[]): UserRep
  * thing that was said". Derived from the same pass as the thread so the two can
  * never disagree about which reply is newest.
  */
-export function pickLatestUserReply(comments: readonly TrackerComment[]): UserReply | null {
-  const replies = collectUserReplies(comments);
+export function pickLatestUserReply(
+  comments: readonly TrackerComment[],
+  marker: string = PUBLIC_REPLY_MARKER,
+): UserReply | null {
+  const replies = collectUserReplies(comments, marker);
   return replies[replies.length - 1] ?? null;
 }
 

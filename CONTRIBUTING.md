@@ -60,6 +60,8 @@ Test behavior, not implementation. Every bug fix ships with the test that would 
 - Conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`.
 - Under 400 lines of diff, one idea per PR.
 - Docs change with the code, in the same PR: `README.md`, `llms.txt`, `CHANGELOG.md`.
+- `pnpm docs:llms` regenerates `llms-full.txt` from those sources; commit the result. CI fails a
+  pull request whose copy is stale.
 - CI must be green before merge.
 
 ## License

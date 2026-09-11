@@ -1,0 +1,32 @@
+# @aitofy/bugdeck-server
+
+The HTTP half of bugdeck, an open-source Marker.io / BugHerd alternative: it stores the bug reports
+`@aitofy/bugdeck` files, screenshots included, and mirrors them into your tracker. Self-hosted,
+SQLite by default, your auth in front of it, zero telemetry. MIT, Node >= 20.
+
+    pnpm add @aitofy/bugdeck-server @aitofy/bugdeck-core
+
+1. Standalone. It reads the environment and listens on :3131 — Plane, or GitHub Issues:
+
+    PLANE_BASE_URL=… PLANE_API_KEY=… PLANE_WORKSPACE_SLUG=… PLANE_PROJECT_ID=… npx @aitofy/bugdeck-server
+    TRACKER=github GITHUB_OWNER=… GITHUB_REPO=… GITHUB_TOKEN=… npx @aitofy/bugdeck-server
+
+2. Or mount it in the server you already have. It is a plain Hono app, and `resolveUser` is your
+   own auth as a function — `null` is a 401:
+
+    const app = createFeedbackApp({                            // @aitofy/bugdeck-server
+      tracker: createPlaneTracker({ baseUrl, apiKey, workspaceSlug, projectId }),  // -core
+      store: createSqliteStore({ storagePath: './storage' }),
+      resolveUser: async (request) => mySession(request.headers.get('cookie')),
+    });
+    serve({ fetch: app.fetch, port: 3131 });                 // @hono/node-server
+
+3. Inside Express, keeping that server's own session:
+
+    server.use('/feedback', getRequestListener(app.fetch));  // @hono/node-server
+
+Every POLL_INTERVAL seconds (default 300, 0 off) the tracker is read back: the state follows the
+report, and a comment starting with `@user` becomes the reporter's reply — every other comment
+stays internal. Routes, error codes, every variable, and why `AUTH_MODE=header` is not auth:
+https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/packages/server/README.md
+Whole project, one file: https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/llms-full.txt

@@ -60,6 +60,17 @@ export interface TrackerFile {
   bytes: Uint8Array;
 }
 
+/**
+ * The one way to name a file, so "already uploaded" is answerable.
+ *
+ * Derived from the asset id and nothing else: two users uploading
+ * `screenshot.png` must not collide, and a retried upload must recognise its
+ * own earlier copy rather than adding a second one.
+ */
+export function attachmentName(assetId: string): string {
+  return `feedback-${assetId}.png`;
+}
+
 /** What the attachment pass produced, as the body renderer needs to see it. */
 export interface TrackerAttachments {
   /** File name → tracker asset id, for the uploads that landed. */
@@ -125,6 +136,28 @@ export interface CreateIssueJob {
   images: TrackerFile[];
 }
 
+/**
+ * What an EDIT sends: the same three fields a create does, minus the identity.
+ * The issue already exists and `externalId` addresses it.
+ */
+export type IssueUpdateInput = Pick<CreateIssueJob, 'title' | 'descriptionHtml' | 'images'>;
+
+/**
+ * One message from the reporter, as a comment renderer needs to see it.
+ *
+ * The same ids-only rule as `IssueBodyInput`: what travels on the wire is the
+ * adapter's business. `blocks` is empty rather than null when the message is
+ * plain text, so a renderer branches on a length instead of on two falsy cases.
+ */
+export interface CommentBodyInput {
+  text: string;
+  blocks: FeedbackBlock[];
+  assetIds: string[];
+}
+
+/** What turns one message into the markup one tracker understands. */
+export type CommentBodyRenderer = (input: CommentBodyInput) => TrackerBody;
+
 // ─── what comes back ─────────────────────────────────────────────
 
 /** One comment as read off a tracker. `createdAt` is null when unparseable. */
@@ -160,6 +193,12 @@ export interface IssueTracker {
   /** Idempotent on `externalSource` + `externalId`: twice is one issue. */
   createIssue(job: CreateIssueJob): Promise<Result<{ externalId: string; code: string }>>;
   addComment(externalId: string, html: string): Promise<Result<{ commentId: string }>>;
+  /**
+   * Rewrite an existing issue. Absent on a tracker that cannot, which is not a
+   * broken tracker: only a report nobody has read yet is editable, so the worst
+   * an absent method costs is an issue still holding the text it was filed with.
+   */
+  updateIssue?(externalId: string, input: IssueUpdateInput): Promise<Result<void>>;
   /** Absent on trackers with no attachment API; the caller links instead. */
   uploadAttachment?(
     externalId: string,
@@ -173,6 +212,12 @@ export interface IssueTracker {
    * caller that had to know which is a caller coupled to every adapter.
    */
   renderBody?(job: IssueBodyInput): TrackerBody;
+  /**
+   * The same, for one message on an existing issue. Separate from `renderBody`
+   * because a comment is not a report: it has no header lines, and Plane gets
+   * its inline `<image-component>` back only if the adapter renders it.
+   */
+  renderComment?(input: CommentBodyInput): TrackerBody;
 }
 
 // ─── logging ─────────────────────────────────────────────────────

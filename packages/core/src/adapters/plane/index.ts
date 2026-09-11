@@ -17,6 +17,7 @@ import {
   ok,
   type CreateIssueJob,
   type IssueTracker,
+  type IssueUpdateInput,
   type Result,
   type TrackerAttachments,
   type TrackerBody,
@@ -34,12 +35,11 @@ import {
   type PlaneHttp,
 } from './client.js';
 import { uploadAttachment, uploadFiles } from './attachments.js';
-import { planeBody } from './html.js';
+import { planeBody, planeCommentBody } from './html.js';
 import { resolveProjectStates, readUpdates } from './updates.js';
 
 export type { PlaneConfig } from './client.js';
 export { isConfigured, PlaneHttpError, resolveHttp } from './client.js';
-export { attachmentName } from './attachments.js';
 export * from './html.js';
 export * from './state.js';
 export * from './reply.js';
@@ -210,6 +210,23 @@ export function createPlaneTracker(config: PlaneConfig): IssueTracker {
       }
     },
 
+    /**
+     * The same inline images in a comment as in the description: Plane's
+     * comment editor is the description editor, so a message keeps its layout.
+     */
+    renderComment(input) {
+      return planeCommentBody(input, config.publicUrl ?? '');
+    },
+
+    async updateIssue(externalId, input) {
+      const result = await rewriteIssue(http, externalId, input);
+      if (!result.ok) return result;
+      for (const warning of result.value.warnings) {
+        http.logger.warn('plane issue update finished with a warning', { externalId, warning });
+      }
+      return ok(undefined);
+    },
+
     async uploadAttachment(externalId, file) {
       try {
         return ok({ assetId: await uploadAttachment(http, externalId, file), name: file.name });
@@ -225,17 +242,23 @@ export function createPlaneTracker(config: PlaneConfig): IssueTracker {
 }
 
 /**
- * Rewrite an existing issue's title and body.
- *
- * Not on `IssueTracker`: only reports nobody has read yet are editable, and a
- * tracker that cannot edit should not have to say so. Reachable through the
- * adapter for the hosts whose tracker is Plane.
+ * Rewrite an existing issue's title and body, for a caller holding a config
+ * rather than a tracker. `createPlaneTracker().updateIssue` is the same pass,
+ * and the warnings it collects go to the logger instead of the caller.
  */
-export async function updateIssue(
+export function updateIssue(
   config: PlaneConfig,
   externalId: string,
-  job: Pick<CreateIssueJob, 'title' | 'descriptionHtml' | 'images'>,
+  job: IssueUpdateInput,
   http: PlaneHttp = resolveHttp(config),
+): Promise<Result<{ warnings: string[] }>> {
+  return rewriteIssue(http, externalId, job);
+}
+
+async function rewriteIssue(
+  http: PlaneHttp,
+  externalId: string,
+  job: IssueUpdateInput,
 ): Promise<Result<{ warnings: string[] }>> {
   try {
     // `true`: the issue already carries the original report's screenshots, so

@@ -11,7 +11,6 @@ export {
   type IssueBridge,
   type IssueBridgeOptions,
 } from './bridge.js';
-export type { EditableTracker, IssueUpdateInput } from './editable-tracker.js';
 export { BUGDECK_EXTERNAL_SOURCE, buildCreateIssueJob, toIssueBodyInput } from './issue-job.js';
 export {
   commentOnReport,
@@ -19,7 +18,7 @@ export {
   editedAssetIds,
   type AmendContext,
 } from './amend-report.js';
-export { mirrorComments, mirrorEdit, renderCommentHtml, type MirrorDeps } from './mirror.js';
+export { mirrorComments, mirrorEdit, type MirrorDeps } from './mirror.js';
 export { defaultLimits, resolveLimits, maxBodyBytes, type FeedbackLimits } from './limits.js';
 export { createRateLimiter, type RateLimiter, type RateLimitOptions } from './rate-limit.js';
 export { createMemoryStore } from './memory-store.js';
@@ -34,11 +33,21 @@ export {
 export {
   readServerConfig,
   AUTH_MODES,
+  TRACKERS,
   type AuthMode,
   type ConfigResult,
   type Environment,
   type ServerConfig,
+  type TrackerConfig,
+  type TrackerKind,
 } from './config.js';
+export {
+  createSyncWorker,
+  SYNC_SINCE_KEY,
+  type SyncStats,
+  type SyncWorker,
+  type SyncWorkerOptions,
+} from './sync-worker.js';
 export { serve, type RunningServer, type ServeOptions, type ServeResult } from './serve.js';
 export { parseContext, readSubmission, type ParsedForm, type Submission } from './submission.js';
 export { toReportDto, userTurnCount } from './report-record.js';

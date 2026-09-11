@@ -52,6 +52,11 @@ export interface GithubConfig {
    * Defaults to a `pending` and a `review` label of those names.
    */
   stateLabels?: Partial<Record<FeedbackState, string>>;
+  /**
+   * The prefix that makes a comment on an issue visible to the reporter.
+   * Defaults to `@user`; the poll worker reads comments back with it.
+   */
+  publicReplyMarker?: string;
   /** Injectable seam: swap it in a test, or wrap it for a proxy. */
   fetch?: typeof fetch;
   logger?: Logger;

@@ -11,15 +11,20 @@
  * exactly the bug this file exists to make impossible.
  */
 import type { FeedbackBlock } from '../../contract.js';
-import type { IssueBodyInput, TrackerBody } from '../../tracker.js';
+import {
+  attachmentName,
+  type CommentBodyInput,
+  type IssueBodyInput,
+  type TrackerBody,
+} from '../../tracker.js';
 import {
   assetLinksHtml,
   escapeHtml,
   issueWhereHtml,
   issueWhoHtml,
   textBlock,
+  unattachedAssetIds,
 } from '../../issue-body.js';
-import { attachmentName } from './attachments.js';
 
 export function buildDescriptionHtml(job: IssueBodyInput): string {
   return [issueWhoHtml(job), `<p>${textBlock(job.description)}</p>`, issueWhereHtml(job)]
@@ -105,6 +110,19 @@ export function buildAppendCommentHtml(
   return body.join('');
 }
 
+/** Our asset id → the Plane asset id the inline element wants. */
+function planeAssetIds(
+  assetIds: readonly string[],
+  assetIdByFileName: ReadonlyMap<string, string>,
+): Map<string, string> {
+  const byAssetId = new Map<string, string>();
+  for (const assetId of assetIds) {
+    const planeAssetId = assetIdByFileName.get(attachmentName(assetId));
+    if (planeAssetId) byAssetId.set(assetId, planeAssetId);
+  }
+  return byAssetId;
+}
+
 /**
  * The body of one report, as a `TrackerBody` the adapter can render TWICE.
  *
@@ -116,13 +134,8 @@ export function buildAppendCommentHtml(
  */
 export function planeBody(job: IssueBodyInput, publicUrl = ''): TrackerBody {
   return ({ assetIdByFileName, uploaded }) => {
-    const planeAssetIdByAssetId = new Map<string, string>();
-    const failed: string[] = [];
-    for (const assetId of job.assetIds) {
-      const planeAssetId = assetIdByFileName.get(attachmentName(assetId));
-      if (planeAssetId) planeAssetIdByAssetId.set(assetId, planeAssetId);
-      else failed.push(assetId);
-    }
+    const planeAssetIdByAssetId = planeAssetIds(job.assetIds, assetIdByFileName);
+    const failed = unattachedAssetIds(job.assetIds, assetIdByFileName);
 
     const body =
       planeAssetIdByAssetId.size && job.blocks?.length
@@ -131,5 +144,28 @@ export function planeBody(job: IssueBodyInput, publicUrl = ''): TrackerBody {
     // Before the upload pass nothing has FAILED yet — an image with no id is
     // simply an image whose turn has not come.
     return body + (uploaded && publicUrl ? buildAssetFallbackHtml(publicUrl, failed) : '');
+  };
+}
+
+/**
+ * One message from the reporter, as a `TrackerBody` the adapter renders once
+ * the message's images have been offered to Plane.
+ *
+ * Same double duty as the description: the images are attachments AND inline
+ * `<image-component>` elements, so a Plane that ever stops resolving inline ids
+ * costs the layout and never the screenshot. Whatever the upload refused
+ * becomes an auth-scoped link instead of vanishing.
+ */
+export function planeCommentBody(input: CommentBodyInput, publicUrl = ''): TrackerBody {
+  return ({ assetIdByFileName, uploaded }) => {
+    const html = buildAppendCommentHtml(
+      input.text,
+      input.blocks,
+      planeAssetIds(input.assetIds, assetIdByFileName),
+    );
+    // Before the upload pass nothing has FAILED yet — an image with no id is
+    // simply an image whose turn has not come.
+    const failed = uploaded ? unattachedAssetIds(input.assetIds, assetIdByFileName) : [];
+    return html + buildAssetFallbackHtml(publicUrl, failed);
   };
 }

@@ -1,0 +1,30 @@
+# @aitofy/bugdeck
+
+The React widget half of bugdeck, an open-source Marker.io / BugHerd alternative: a floating
+"Report a bug" button. The user screenshots the page or points at one element, draws on the shot,
+writes with the pictures inline, and sends. It lands on your own `@aitofy/bugdeck-server`, behind
+your own auth. One `<style>` tag, no UI dependencies, zero telemetry. MIT, React >= 18 peer.
+
+    pnpm add @aitofy/bugdeck        # react and react-dom >= 18 are peers
+
+1. Mount it. `apiBase` is the only required prop:
+
+    import { FeedbackWidget } from '@aitofy/bugdeck';
+    <FeedbackWidget apiBase="http://localhost:3131" />;
+
+2. Your auth and your build on every report, plus the last API failure the app saw:
+
+    import { FeedbackWidget, reportApiError } from '@aitofy/bugdeck';
+    <FeedbackWidget apiBase="/api" buildCommit={__COMMIT__}
+      fetchAuthHeaders={async () => ({ Authorization: await token() })} />;
+    api.interceptors.response.use(undefined, (err) => { reportApiError(err); throw err; });
+
+3. Translate every word, error codes included. Anything left out falls back to English:
+
+    <FeedbackWidget apiBase="/api" strings={{ launcherLabel: 'Signaler un bug', send: 'Envoyer',
+      errors: { RATE_LIMITED: 'Trop de rapports cette heure-ci.' } }} />;
+
+Every prop, the ten CSS variables, the wire format and the gotchas:
+https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/packages/widget/README.md
+Whole project, one file: https://raw.githubusercontent.com/aitofy-dev/bugdeck/main/llms-full.txt
+Source and issues: https://github.com/aitofy-dev/bugdeck

@@ -11,14 +11,19 @@
  * serial queue means a slow tracker delays reports instead of opening fifty
  * sockets to a board that is already struggling.
  */
-import { consoleLogger, issueBodyRenderer, type Logger } from '@aitofy/bugdeck-core';
-import type { EditableTracker } from './editable-tracker.js';
+import {
+  commentBodyRenderer,
+  consoleLogger,
+  issueBodyRenderer,
+  type IssueTracker,
+  type Logger,
+} from '@aitofy/bugdeck-core';
 import { buildCreateIssueJob } from './issue-job.js';
 import { loadAssets, mirrorComments, mirrorEdit, type MirrorDeps } from './mirror.js';
 import type { FeedbackStore } from './store.js';
 
 export interface IssueBridgeOptions {
-  tracker: EditableTracker;
+  tracker: IssueTracker;
   store: FeedbackStore;
   logger?: Logger;
   /** Base for auth-scoped asset links, used when the tracker refuses an upload. */
@@ -49,6 +54,7 @@ export function createIssueBridge(options: IssueBridgeOptions): IssueBridge {
   // The tracker's own markup when it has one, plain HTML when it does not. This
   // package never imports an adapter to find out which.
   const renderBody = issueBodyRenderer(options.tracker, options.publicUrl ?? '');
+  const renderComment = commentBodyRenderer(options.tracker, options.publicUrl ?? '');
   const sleep = options.sleep ?? wait;
   const delays = options.retryDelaysMs ?? RETRY_DELAYS_MS;
   let tail: Promise<void> = Promise.resolve();
@@ -59,6 +65,7 @@ export function createIssueBridge(options: IssueBridgeOptions): IssueBridge {
     logger,
     publicUrl: options.publicUrl ?? '',
     renderBody,
+    renderComment,
   };
 
   /**

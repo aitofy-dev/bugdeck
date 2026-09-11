@@ -21,7 +21,7 @@
     "scripts": {
         "build": "tsc -p tsconfig.build.json",
         "typecheck": "tsc --noEmit",
-        "test": "tsx --test \"src/__tests__/*.test.ts\"",
+        "test": "tsx --test src/__tests__/*.test.ts",
         "serve": "tsx src/bin.ts"
     },
     "dependencies": {

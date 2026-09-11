@@ -18,7 +18,7 @@
     "scripts": {
         "build": "tsc -p tsconfig.build.json",
         "typecheck": "tsc --noEmit",
-        "test": "tsx --test \"src/**/__tests__/*.test.ts\"",
+        "test": "tsx --test $(find src -name '*.test.ts')",
         "e2e:picker": "node e2e/picker-highlight.mjs"
     },
     "dependencies": {

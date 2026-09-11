@@ -1,0 +1,65 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: >
+        The smallest app, request or script that shows the problem, with the exact output.
+        Remove API keys before pasting.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Package and version
+      placeholder: "@bugdeck/server 0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: "macOS 15.3 / Ubuntu 24.04 / Windows 11"
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node version
+      placeholder: "node -v"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where it happens
+      options:
+        - Widget (React)
+        - Server (HTTP API)
+        - Core (contract, blocks, image sanitisation)
+        - Tracker adapter (Plane / GitHub / Linear)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: tracker
+    attributes:
+      label: Tracker and version
+      placeholder: "Plane 0.24 self-hosted / GitHub.com"

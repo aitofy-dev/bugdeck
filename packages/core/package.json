@@ -1,0 +1,37 @@
+{
+    "name": "@bugdeck/core",
+    "version": "0.1.0",
+    "description": "Pure core for bugdeck: the report contract, block parsing, derived titles, image sanitisation and issue rendering.",
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "files": [
+        "dist",
+        "README.md",
+        "LICENSE"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.build.json",
+        "typecheck": "tsc --noEmit",
+        "test": "tsx --test src/__tests__/*.test.ts"
+    },
+    "optionalDependencies": {
+        "sharp": "^0.33.5"
+    },
+    "devDependencies": {
+        "@types/node": "^22.10.2",
+        "tsx": "^4.19.2",
+        "typescript": "^5.7.2"
+    },
+    "engines": {
+        "node": ">=20"
+    },
+    "license": "MIT",
+    "sideEffects": false
+}

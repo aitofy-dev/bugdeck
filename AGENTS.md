@@ -1,0 +1,87 @@
+# Aitofy Engineering Rules
+
+> Applies to every repo under `aitofy/`. A repo may add a `CLAUDE.md` of its own for specifics, never to relax these.
+> Copy or symlink this file as `AGENTS.md` in each public repo so humans and AI agents read the same rules.
+
+## 1. Principles
+
+- **SSOT** — one fact lives in exactly one place. Types in `types.ts`, defaults in one `defaults` object, docs derived from code, never the reverse.
+- **DRY, Rule of Three** — duplicate twice, abstract on the third. Only dedupe code that changes for the same reason.
+- **YAGNI** — no code for imagined futures. No feature flags for features that do not exist.
+- **KISS** — the simplest thing that works wins. "Clever" is a code smell.
+- **Boring by default** — stable Node APIs, few dependencies, no framework unless it removes more code than it adds.
+
+## 2. Code
+
+- **TypeScript strict.** No `any`. Prefer discriminated unions so illegal states cannot be expressed.
+- **Comments are English, explain why, never what.** ≤2 lines. No dates, names, or history.
+- **Names say the domain.** `profileManager`, `fingerprintScript`. Never `data`, `info`, `utils`, `helper`, `manager` alone.
+- **Pure core, IO at the edge.** Fingerprint math, config merging, validation: pure functions. Filesystem, Chrome, network: thin wrappers around them.
+- **Validate at the boundary, trust inside.** Parse user input into typed objects once. Internal functions take typed args, not raw objects.
+- **Errors are actionable.** Message states what failed, why, and what to do: `Chrome not found at ${path}. Install Chrome or pass chromePath.`
+- **No global mutable state.** Anything that would be a global becomes a constructor argument.
+- **Idempotent operations.** Create, launch, close, delete can be safely retried.
+- **Size targets.** Function <30 lines, file <300 lines. Split by responsibility, not by line count.
+- **Tests test behavior.** One `*.test.ts` next to the module. Every bug fix ships with the test that would have caught it.
+
+## 3. Easy to use
+
+- **30-second quick start.** One import, one call, something visible happens. `quickLaunch()` is the model.
+- **Zero config, full config.** Every option has a sane default. Every default is overridable.
+- **Progressive disclosure.** Simple API on top (`quickLaunch`), full API underneath (`BrowserProfiles`), escape hatch at the bottom (raw CDP/native objects).
+- **One entry point.** Everything public is exported from `index.ts`. Subpath exports only for optional peer integrations.
+- **Types are the docs.** Public options are documented with JSDoc on the type, once.
+- **Works with npm, pnpm, yarn, bun.** ESM + CJS dual build. Node LTS floor stated in `engines`.
+- **Same core, three faces.** Library, CLI, and (when needed) HTTP API all call the same functions. The CLI never contains logic.
+
+## 4. Easy to extend
+
+- **Stable core, thin adapters.** Integrations (`puppeteer`, `playwright`, ...) live in `integrations/` and adapt the core. The core never imports an integration.
+- **Extend by adding a file, not editing five.** New proxy type, new fingerprint module, new integration: one new file plus one registration line.
+- **Interfaces are small.** An adapter implements the minimum. Optional capabilities are optional methods.
+- **Public API is explicit.** If it is not exported from `index.ts`, it is private and may change without notice.
+- **Semver is a promise.** Breaking change = major. Deprecate for one minor before removing. Note every change in `CHANGELOG.md`.
+
+## 5. Easy to scale and integrate
+
+- **Config from three sources, one precedence.** Args > env vars > config file > defaults.
+- **Storage path is configurable.** Never hardcode `~/.aitofy`; read it from one place.
+- **No hidden background work.** No timers, no telemetry, no network calls the user did not ask for.
+- **Structured logs, opt-in.** `debug` flag or `DEBUG=aitofy:*`. Never log secrets or proxy credentials.
+- **Process-safe.** Assume two processes may use the same profile store. Lock files, atomic writes, stale-lock cleanup.
+- **Machine-readable output.** CLI supports `--json` so it can be piped into other tools.
+
+## 6. Repo checklist (every public repo)
+
+| File / dir | Purpose |
+|------------|---------|
+| `README.md` | Landing page. Hook in 5 lines, comparison table, GIF, 30-second example. |
+| `llms.txt` | Same content as README, plain text, for AI agents and search. |
+| `AGENTS.md` | This file. AI coding agents read it before touching code. |
+| `CONTRIBUTING.md` | Clone, install, test, PR in under 2 minutes of reading. |
+| `CHANGELOG.md` | Keep a Changelog format. Written for users, not for git. |
+| `SECURITY.md` | How to report a vulnerability privately. |
+| `LICENSE` | MIT. |
+| `examples/` | One runnable file per use case. Copy, paste, run. |
+| `.github/workflows/ci.yml` | Typecheck, lint, test, build on every PR. Badge in README. |
+| `.github/ISSUE_TEMPLATE/` | Bug and feature templates. Bug template asks for version, OS, Node, minimal repro. |
+
+## 7. Growth rules
+
+- **Position against a paid incumbent.** `"Open-source X alternative"` in the description, keywords, and first README line. People search for the incumbent.
+- **Proof over claims.** Show benchmark tables, detection scores, screenshots. Update them with each release.
+- **Show, do not tell.** A 10-second GIF beats 500 words. Put it above the fold.
+- **Recipes drive adoption.** Every GitHub issue that asks "how do I X" becomes an `examples/x.ts` and a README section.
+- **Label `good first issue` from day one.** Small, well-scoped, with pointers to the exact file.
+- **Respond within 24 hours.** An issue with a reply is a community. An issue without one is abandonware.
+- **Release small, release often.** Weekly patch releases with a changelog entry beat quarterly big bangs.
+- **Zero telemetry, say it loudly.** Privacy is a feature for self-hosted tools.
+- **AI-native DX.** `llms.txt` + `AGENTS.md` + typed API means Cursor, Claude, and Copilot write correct code for your library. That is free distribution.
+
+## 8. Workflow
+
+- **Conventional commits.** `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`. Scope optional: `feat(cli): ...`.
+- **Small PRs.** <400 lines of diff. One idea per PR.
+- **CI must be green before merge.** No exceptions for the maintainer.
+- **Docs change with code, same PR.** README, `llms.txt`, and `CHANGELOG.md` are part of the feature.
+- **Delete old lines, never annotate them.** No "deprecated, see below", no "TODO remove". Remove it or keep it.

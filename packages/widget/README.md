@@ -214,7 +214,7 @@ It needs a page with a **fixed sidebar and a sticky header**; that is what `exam
 
 ```sh
 pnpm --filter @aitofy/bugdeck build
-pnpm --filter @bugdeck/example-vite-react dev   # serves http://localhost:5173
+pnpm --filter @aitofy/example-vite-react dev   # serves http://localhost:5173
 pnpm --filter @aitofy/bugdeck e2e:picker
 ```
 

@@ -16,7 +16,7 @@
  *
  * Run (from the repo root):
  *   pnpm --filter @aitofy/bugdeck build          # the demo imports dist/
- *   pnpm --filter @bugdeck/example-vite-react dev
+ *   pnpm --filter @aitofy/example-vite-react dev
  *   pnpm --filter @aitofy/bugdeck e2e:picker
  *
  * Playwright is not a dependency of this repo — it is imported from wherever it

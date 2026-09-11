@@ -1,13 +1,14 @@
 /**
  * The public surface of `@bugdeck/core`. Nothing is public unless it is here.
  *
- * Everything in this package is pure: no filesystem, no network, no clock, no
- * environment. Storage and trackers live in the packages that adapt it.
+ * The root is pure: the contract, block parsing, derived titles, image
+ * sanitisation, thread folding, and the `IssueTracker` seam. Adapters live
+ * under `adapters/` and are the only things that touch a network.
  */
 export * from './contract.js';
 export * from './blocks.js';
 export * from './derive-title.js';
 export * from './sanitize-image.js';
 export * from './thread.js';
-export * from './plane-state.js';
-export * from './plane-html.js';
+export * from './tracker.js';
+export * from './adapters/plane/index.js';

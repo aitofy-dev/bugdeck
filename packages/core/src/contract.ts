@@ -23,6 +23,13 @@ export function needsUserCheck(state: FeedbackState): boolean {
   return state === 'review';
 }
 
+/** Terminal from the user's side: the report is answered, stop polling it hard. */
+export const TERMINAL_FEEDBACK_STATES: readonly FeedbackState[] = ['done', 'fail'];
+
+export function isTerminal(state: FeedbackState): boolean {
+  return TERMINAL_FEEDBACK_STATES.includes(state);
+}
+
 /**
  * Whether the report BODY can still be rewritten.
  *

@@ -10,16 +10,17 @@
  * and the append comment. One of them getting a different escaping rule is
  * exactly the bug this file exists to make impossible.
  */
-import type { FeedbackBlock } from './contract.js';
+import type { FeedbackBlock } from '../../contract.js';
+import type { TrackerBody } from '../../tracker.js';
+import { attachmentName } from './attachments.js';
 
-/** Everything the renderers need about one report. */
-export interface PlaneJobAsset {
-  id: string;
-  mime: string;
-  bytes: number;
-  data: Buffer;
-}
-
+/**
+ * Everything the renderers need about one report.
+ *
+ * Asset IDS only, never bytes: what goes on the wire is the adapter's business,
+ * and a renderer that holds screenshots in memory is a renderer nobody can call
+ * twice.
+ */
 export interface PlaneJob {
   reportId: string;
   title: string;
@@ -31,7 +32,7 @@ export interface PlaneJob {
   userAgent: string;
   buildCommit: string | null;
   lastApiError: { status: number; path: string; message: string } | null;
-  assets: PlaneJobAsset[];
+  assetIds: string[];
   /** Ordered layout, or null for a report filed before the block editor. */
   blocks: FeedbackBlock[] | null;
   externalId: string | null;
@@ -165,4 +166,33 @@ export function buildAppendCommentHtml(
   }
 
   return body.join('');
+}
+
+/**
+ * The body of one report, as a `TrackerBody` the adapter can render TWICE.
+ *
+ * The issue is created with the plain paragraphs because no Plane asset id
+ * exists yet; once the uploads land the adapter calls this again with
+ * `file name → asset id` and gets the same words back with the images inline.
+ * Screenshots Plane refused become auth-scoped links, which is why `publicUrl`
+ * is worth configuring — without it a refused image is simply not mentioned.
+ */
+export function planeBody(job: PlaneJob, publicUrl = ''): TrackerBody {
+  return ({ assetIdByFileName, uploaded }) => {
+    const planeAssetIdByAssetId = new Map<string, string>();
+    const failed: string[] = [];
+    for (const assetId of job.assetIds) {
+      const planeAssetId = assetIdByFileName.get(attachmentName(assetId));
+      if (planeAssetId) planeAssetIdByAssetId.set(assetId, planeAssetId);
+      else failed.push(assetId);
+    }
+
+    const body =
+      planeAssetIdByAssetId.size && job.blocks?.length
+        ? buildBlockDescriptionHtml(job, planeAssetIdByAssetId)
+        : buildDescriptionHtml(job);
+    // Before the upload pass nothing has FAILED yet — an image with no id is
+    // simply an image whose turn has not come.
+    return body + (uploaded && publicUrl ? buildAssetFallbackHtml(publicUrl, failed) : '');
+  };
 }

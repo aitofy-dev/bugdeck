@@ -115,11 +115,9 @@ export function createFeedbackApp(options: FeedbackAppOptions): Hono<FeedbackEnv
 
   const app = new Hono<FeedbackEnv>();
 
-  // No body, not even a code: `ErrorCode` is the vocabulary of a request that
-  // was understood, and this one was not.
   app.use('*', async (c, next): Promise<Response | void> => {
     const user = await options.resolveUser(c.req.raw);
-    if (!user) return c.json({}, 401);
+    if (!user) return refuse(c, 401, 'UNAUTHENTICATED');
     c.set('user', user);
     return next();
   });
@@ -132,7 +130,7 @@ export function createFeedbackApp(options: FeedbackAppOptions): Hono<FeedbackEnv
     }
 
     const form = await readForm(c, logger);
-    if (!form) return c.json({}, 400);
+    if (!form) return refuse(c, 400, 'BAD_REQUEST');
 
     const submission = await readSubmission(form, limits);
     if (!submission.ok) return refuse(c, 400, submission.error);

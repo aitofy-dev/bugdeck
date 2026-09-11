@@ -47,8 +47,15 @@ export function canEditFeedback(state: FeedbackState): boolean {
 /**
  * Every 4xx the server answers with. The server returns the CODE, never a
  * sentence: the widget owns the wording so it can be translated.
+ *
+ * The first two are about the REQUEST rather than the report — who is asking,
+ * and whether the body could be read at all. They are codes like the rest
+ * because "the widget owns the wording" has no exceptions: a 401 answered with
+ * an empty body leaves the user staring at a dialog that failed silently.
  */
 export const ERROR_CODES = [
+  'UNAUTHENTICATED',
+  'BAD_REQUEST',
   'MISSING_DESCRIPTION',
   'TOO_MANY_IMAGES',
   'IMAGE_TOO_LARGE',
@@ -121,12 +128,31 @@ export interface FeedbackApiError {
   status: number;
   path: string;
   message: string;
+  /**
+   * ISO, when the request failed. Absent on an interceptor that never said.
+   * Worth carrying: a failure from twenty minutes ago is a different bug from
+   * one that happened as the user reached for the launcher.
+   */
+  at?: string;
+}
+
+/**
+ * How big the window was, and how many device pixels one CSS pixel is worth.
+ *
+ * `dpr` is what tells a 1440-wide screenshot on a retina display apart from a
+ * 2880-wide one that was downscaled — the difference between "the layout is
+ * broken" and "the image is blurry".
+ */
+export interface FeedbackViewport {
+  width: number;
+  height: number;
+  dpr?: number;
 }
 
 /** Auto-attached by the widget. The user never sees or edits this. */
 export interface FeedbackContext {
   url: string;
-  viewport: { width: number; height: number };
+  viewport: FeedbackViewport;
   userAgent: string;
   buildCommit?: string;
   lastApiError?: FeedbackApiError;

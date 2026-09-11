@@ -1,6 +1,6 @@
 /**
- * The wire. Field names and limits come from `@bugdeck/core`, so the widget and
- * the route cannot drift: a renamed field would be a 400 on a report the user
+ * The wire. Field names and limits come from `@bugdeck/core/contract`, so the
+ * widget and the route cannot drift: a renamed field would be a 400 on a report the user
  * believes was sent, and nobody reports the bug reporter.
  */
 import {
@@ -12,7 +12,7 @@ import {
   type ErrorCode,
   type FeedbackBlockInput,
   type FeedbackContext,
-} from '@bugdeck/core';
+} from '@bugdeck/core/contract';
 import { describeError } from './describe-error.js';
 import { defaultStrings, formatString, isErrorCode, type WidgetStrings } from './strings.js';
 

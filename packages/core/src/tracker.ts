@@ -11,7 +11,12 @@
  * Tuesday, not an exception: the report is already saved, and the caller's job
  * is to retry later, not to unwind a stack.
  */
-import type { FeedbackState } from './contract.js';
+import type {
+  FeedbackApiError,
+  FeedbackBlock,
+  FeedbackState,
+  FeedbackViewport,
+} from './contract.js';
 
 // ─── result ──────────────────────────────────────────────────────
 
@@ -78,6 +83,32 @@ export interface TrackerAttachments {
 export type TrackerBody = string | ((attachments: TrackerAttachments) => string);
 
 /**
+ * One report, as a body renderer needs to see it.
+ *
+ * Ids only, never bytes: what travels on the wire is the adapter's business,
+ * and a renderer holding screenshots in memory is one nobody can call twice.
+ * Everything optional on the stored report arrives as `null` here, so a
+ * renderer branches on a value rather than on a missing key.
+ */
+export interface IssueBodyInput {
+  reportId: string;
+  description: string;
+  userEmail: string;
+  teamName: string | null;
+  url: string;
+  viewport: FeedbackViewport;
+  userAgent: string;
+  buildCommit: string | null;
+  lastApiError: FeedbackApiError | null;
+  assetIds: string[];
+  /** Ordered layout, or null for a report filed before the block editor. */
+  blocks: FeedbackBlock[] | null;
+}
+
+/** What turns a report into the markup one tracker understands. */
+export type IssueBodyRenderer = (job: IssueBodyInput) => TrackerBody;
+
+/**
  * One report, as the tracker needs to hear about it.
  *
  * `externalSource` + `externalId` are OUR side of the dedupe: the tracker is
@@ -131,6 +162,12 @@ export interface IssueTracker {
   ): Promise<Result<{ assetId: string; name: string }>>;
   /** Absent on trackers with no way to ask "what changed"; polling is optional. */
   listUpdates?(since: Date): AsyncIterable<TrackerUpdate>;
+  /**
+   * The markup this tracker renders best. Absent means plain HTML: Plane
+   * inlines images with its own element, GitHub would want Markdown, and a
+   * caller that had to know which is a caller coupled to every adapter.
+   */
+  renderBody?(job: IssueBodyInput): TrackerBody;
 }
 
 // ─── logging ─────────────────────────────────────────────────────

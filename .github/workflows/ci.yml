@@ -37,3 +37,18 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+
+    steps:
+      # Full history: a credential is only removed once it is gone from every
+      # commit, so scanning the tip would pass on a repo that still leaks.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

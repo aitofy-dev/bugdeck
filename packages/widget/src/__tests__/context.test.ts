@@ -15,6 +15,7 @@ const env: ContextEnv = {
   href: 'https://app.example.com/settings?tab=pending',
   innerWidth: 1512.4,
   innerHeight: 857.6,
+  devicePixelRatio: 2,
   userAgent: 'Mozilla/5.0 (Macintosh)',
 };
 
@@ -22,10 +23,17 @@ test('collectContext carries url, rounded viewport and UA', () => {
   clearLastApiError();
   const context = collectContext(env);
   assert.equal(context.url, env.href);
-  assert.deepEqual(context.viewport, { width: 1512, height: 858 });
+  assert.deepEqual(context.viewport, { width: 1512, height: 858, dpr: 2 });
   assert.equal(context.userAgent, env.userAgent);
   assert.equal(context.buildCommit, undefined);
   assert.equal(context.lastApiError, undefined);
+});
+
+test('collectContext prints a pixel ratio only when the screen is not an ordinary one', () => {
+  clearLastApiError();
+  assert.equal('dpr' in collectContext({ ...env, devicePixelRatio: 1 }).viewport, false);
+  assert.equal('dpr' in collectContext({ ...env, devicePixelRatio: 0 }).viewport, false);
+  assert.equal(collectContext({ ...env, devicePixelRatio: 2.625 }).viewport.dpr, 2.63);
 });
 
 test('collectContext omits buildCommit when the host app has none', () => {
@@ -41,6 +49,8 @@ test('collectContext picks up the last error reported by the app interceptor', (
   assert.equal(context.lastApiError?.status, 502);
   assert.equal(context.lastApiError?.path, '/api/reports');
   assert.equal(context.lastApiError?.message, 'Request failed');
+  // Stamped by the interceptor edge, so a stale failure can be recognised.
+  assert.match(context.lastApiError?.at ?? '', /^\d{4}-\d{2}-\d{2}T/);
   clearLastApiError();
   assert.equal(collectContext(env).lastApiError, undefined);
 });
@@ -62,6 +72,8 @@ test('normalizeApiError survives a thrown string and a bare object', () => {
   assert.equal(normalizeApiError(undefined).message, 'Unknown error');
   // The contract fields are required, so they are filled rather than dropped.
   assert.deepEqual(normalizeApiError('boom'), { status: 0, path: '', message: 'boom' });
+  // Pure: the clock belongs to `reportApiError`, not here.
+  assert.equal('at' in normalizeApiError('boom'), false);
 });
 
 test('normalizeApiError caps a runaway message so the report body stays sane', () => {

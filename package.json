@@ -24,5 +24,23 @@
             "esbuild",
             "sharp"
         ]
-    }
+    },
+    "version": "0.1.0",
+    "description": "Open-source Marker.io / BugHerd alternative \u2014 self-hosted bug reports with screenshot, annotation and element picker.",
+    "keywords": [
+        "marker-io-alternative",
+        "bugherd-alternative",
+        "bug-reporting",
+        "self-hosted",
+        "plane"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/aitofy-dev/bugdeck.git"
+    },
+    "homepage": "https://github.com/aitofy-dev/bugdeck#readme",
+    "bugs": {
+        "url": "https://github.com/aitofy-dev/bugdeck/issues"
+    },
+    "author": "aitofy"
 }

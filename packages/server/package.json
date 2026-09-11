@@ -16,8 +16,7 @@
     },
     "files": [
         "dist",
-        "README.md",
-        "LICENSE"
+        "README.md"
     ],
     "scripts": {
         "build": "tsc -p tsconfig.build.json",
@@ -39,12 +38,14 @@
         "typescript": "^5.7.2"
     },
     "keywords": [
-        "bug-report",
+        "marker-io-alternative",
+        "bugherd-alternative",
+        "jam-dev-alternative",
+        "bug-reporting",
         "feedback-api",
         "self-hosted",
         "plane",
         "plane-so",
-        "marker-io-alternative",
         "hono",
         "sqlite"
     ],
@@ -52,5 +53,18 @@
         "node": ">=20"
     },
     "license": "MIT",
-    "sideEffects": false
+    "sideEffects": false,
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/aitofy-dev/bugdeck.git",
+        "directory": "packages/server"
+    },
+    "homepage": "https://github.com/aitofy-dev/bugdeck/tree/main/packages/server#readme",
+    "bugs": {
+        "url": "https://github.com/aitofy-dev/bugdeck/issues"
+    },
+    "author": "aitofy",
+    "publishConfig": {
+        "access": "public"
+    }
 }

@@ -10,8 +10,8 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { silentLogger, type CreateIssueJob } from '../../../tracker.js';
-import { createPlaneTracker, planeBody, type PlaneJob } from '../index.js';
+import { silentLogger, type CreateIssueJob, type IssueBodyInput } from '../../../tracker.js';
+import { createPlaneTracker, planeBody } from '../index.js';
 import { CONFIG, fakePlane, OK_PROJECT, OK_STATES, png } from './fake-plane.js';
 
 const PRESIGN = (assetId: string) => ({
@@ -39,10 +39,9 @@ function job(over: Partial<CreateIssueJob> = {}): CreateIssueJob {
   };
 }
 
-function reportJob(over: Partial<PlaneJob> = {}): PlaneJob {
+function reportJob(over: Partial<IssueBodyInput> = {}): IssueBodyInput {
   return {
     reportId: 'report-1',
-    title: 'broken',
     description: 'broken',
     userEmail: 'reporter@example.com',
     teamName: null,
@@ -53,7 +52,6 @@ function reportJob(over: Partial<PlaneJob> = {}): PlaneJob {
     lastApiError: null,
     assetIds: [],
     blocks: null,
-    externalId: null,
     ...over,
   };
 }

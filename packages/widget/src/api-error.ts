@@ -1,8 +1,10 @@
-import type { FeedbackApiError } from '@bugdeck/core';
+import type { FeedbackApiError } from '@bugdeck/core/contract';
 
 export interface ApiErrorMeta {
   status?: number;
   path?: string;
+  /** ISO. Left to the caller so the normaliser stays pure and testable. */
+  at?: string;
 }
 
 interface AxiosLike {
@@ -55,6 +57,7 @@ export function normalizeApiError(err: unknown, meta: ApiErrorMeta = {}): Feedba
     status: status ?? 0,
     path: path?.slice(0, 300) ?? '',
     message: message.slice(0, 500),
+    ...(meta.at ? { at: meta.at } : {}),
   };
 }
 
@@ -65,8 +68,11 @@ let lastApiError: FeedbackApiError | undefined;
  * failing request usually happens far from where the widget is mounted, and
  * threading a context provider through every api client is not worth it.
  */
-export function reportApiError(err: unknown, meta?: ApiErrorMeta): void {
-  lastApiError = normalizeApiError(err, meta);
+export function reportApiError(err: unknown, meta: ApiErrorMeta = {}): void {
+  // Stamped here rather than in the normaliser: this is the edge that knows
+  // what time it is, and a failure from twenty minutes ago reads differently
+  // from one that happened as the user reached for the launcher.
+  lastApiError = normalizeApiError(err, { at: new Date().toISOString(), ...meta });
 }
 
 export function getLastApiError(): FeedbackApiError | undefined {

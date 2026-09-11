@@ -102,12 +102,14 @@ Anything you leave out falls back to English; `errors` merges one level deeper, 
 
 ## Wire format
 
-`POST {apiBase}/reports`, multipart. Field names come from `@bugdeck/core`, so the widget and the route cannot drift:
+`POST {apiBase}/reports`, multipart. Field names come from `@bugdeck/core/contract` — the
+browser-safe entry point, so bundling the widget never reaches `sharp` — and the widget and the
+route cannot drift:
 
 | Field | Contents |
 |---|---|
 | `description` | Text — every text block joined by a blank line. A server that only reads this field still gets the whole report |
-| `context` | JSON: `url`, `viewport{width,height}`, `userAgent`, `buildCommit?`, `lastApiError?{status,path,message}` |
+| `context` | JSON: `url`, `viewport{width,height,dpr?}`, `userAgent`, `buildCommit?`, `lastApiError?{status,path,message,at?}` |
 | `blocks` | JSON, ordered; new images referenced by their index among the uploaded files. Additive — a server that ignores it loses only the interleaving |
 | `images` | A REPEATED `images` key (not `images[]`), ≤ `FEEDBACK_MAX_ASSETS` files, ≤ 10 MB each, png/jpeg/webp |
 
@@ -161,7 +163,7 @@ blocks.ts            the block document model and the payload it serialises to
 capture.ts           html-to-image wrapper: imagePlaceholder, 15s timeout, widget filter
 images.ts            size/type/count validation against the contract's limits
 submit.ts            multipart body, endpoints, `FeedbackSubmitError`
-context.ts           url / viewport / UA / commit / last API failure
+context.ts           url / viewport + pixel ratio / UA / commit / last API failure
 api-error.ts         `reportApiError()` — module-level store for an HTTP interceptor
 describe-error.ts    Event/Error → a readable line (html-to-image rejects raw Events)
 ```

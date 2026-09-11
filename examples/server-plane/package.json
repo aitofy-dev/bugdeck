@@ -1,0 +1,18 @@
+{
+    "name": "@bugdeck/example-server-plane",
+    "private": true,
+    "version": "0.1.0",
+    "type": "module",
+    "scripts": {
+        "start": "tsx server.ts",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@bugdeck/server": "workspace:*"
+    },
+    "devDependencies": {
+        "@types/node": "^22.10.2",
+        "tsx": "^4.19.2",
+        "typescript": "^5.7.2"
+    }
+}

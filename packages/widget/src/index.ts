@@ -178,4 +178,4 @@ export type {
   FeedbackContext,
   FeedbackReport,
   FeedbackState,
-} from '@bugdeck/core';
+} from '@bugdeck/core/contract';

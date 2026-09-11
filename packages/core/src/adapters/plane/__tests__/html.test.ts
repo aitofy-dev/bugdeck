@@ -11,17 +11,16 @@ import {
   buildAssetFallbackHtml,
   buildBlockDescriptionHtml,
   buildDescriptionHtml,
-  escapeHtml,
   planeBody,
-  type PlaneJob,
 } from '../html.js';
+import { escapeHtml } from '../../../issue-body.js';
+import type { IssueBodyInput } from '../../../tracker.js';
 
 const PUBLIC_URL = 'https://app.example';
 
-function job(over: Partial<PlaneJob> = {}): PlaneJob {
+function job(over: Partial<IssueBodyInput> = {}): IssueBodyInput {
   return {
     reportId: 'report-1',
-    title: 'The Send button does nothing',
     description: 'The Send button does nothing',
     userEmail: 'reporter@example.com',
     teamName: 'Alpha',
@@ -32,7 +31,6 @@ function job(over: Partial<PlaneJob> = {}): PlaneJob {
     lastApiError: { status: 500, path: '/api/v1/x', message: 'boom' },
     assetIds: [],
     blocks: null,
-    externalId: null,
     ...over,
   };
 }

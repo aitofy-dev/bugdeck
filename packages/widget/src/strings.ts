@@ -7,7 +7,7 @@
  *
  * Placeholders are `{name}` and are substituted by `formatString`.
  */
-import { ERROR_CODES, FEEDBACK_MAX_ASSETS, type ErrorCode } from '@bugdeck/core';
+import { ERROR_CODES, FEEDBACK_MAX_ASSETS, type ErrorCode } from '@bugdeck/core/contract';
 
 export interface WidgetStrings {
   // ─── launcher ──────────────────────────────────────────────────
@@ -178,6 +178,8 @@ export const defaultStrings: WidgetStrings = {
   imageTooMany: '{name}: up to {max} images per report',
 
   errors: {
+    UNAUTHENTICATED: 'Please sign in again, then send this report.',
+    BAD_REQUEST: 'That report could not be read. Try again, or remove the last image.',
     MISSING_DESCRIPTION: 'Write a short description before sending.',
     TOO_MANY_IMAGES: `A report holds at most ${FEEDBACK_MAX_ASSETS} images. Remove a few and send again.`,
     IMAGE_TOO_LARGE: 'One of the images is too large.',

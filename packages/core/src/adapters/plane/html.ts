@@ -11,76 +11,18 @@
  * exactly the bug this file exists to make impossible.
  */
 import type { FeedbackBlock } from '../../contract.js';
-import type { TrackerBody } from '../../tracker.js';
+import type { IssueBodyInput, TrackerBody } from '../../tracker.js';
+import {
+  assetLinksHtml,
+  escapeHtml,
+  issueWhereHtml,
+  issueWhoHtml,
+  textBlock,
+} from '../../issue-body.js';
 import { attachmentName } from './attachments.js';
 
-/**
- * Everything the renderers need about one report.
- *
- * Asset IDS only, never bytes: what goes on the wire is the adapter's business,
- * and a renderer that holds screenshots in memory is a renderer nobody can call
- * twice.
- */
-export interface PlaneJob {
-  reportId: string;
-  title: string;
-  description: string;
-  userEmail: string;
-  teamName: string | null;
-  url: string;
-  viewport: { width: number; height: number };
-  userAgent: string;
-  buildCommit: string | null;
-  lastApiError: { status: number; path: string; message: string } | null;
-  assetIds: string[];
-  /** Ordered layout, or null for a report filed before the block editor. */
-  blocks: FeedbackBlock[] | null;
-  externalId: string | null;
-}
-
-/** Values only. The tags around them are ours and must reach Plane raw. */
-export function escapeHtml(raw: string): string {
-  return raw
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-export function textBlock(raw: string): string {
-  return escapeHtml(raw).replace(/\r?\n/g, '<br />');
-}
-
-/**
- * Three paragraphs: who, what, where. The third one is what triage actually
- * reads, so it stays on one line even when half of it is missing — omitted
- * rather than printed as "commit: null".
- */
-function buildWhoHtml(job: PlaneJob): string {
-  const who = [`user: ${escapeHtml(job.userEmail || 'unknown')}`];
-  if (job.teamName) who.push(`team: ${escapeHtml(job.teamName)}`);
-  return `<p>${who.join(' · ')}</p>`;
-}
-
-function buildWhereHtml(job: PlaneJob): string {
-  const where: string[] = [];
-  if (job.url) where.push(`url: ${escapeHtml(job.url)}`);
-  if (job.viewport.width || job.viewport.height) {
-    where.push(`viewport: ${job.viewport.width}×${job.viewport.height}`);
-  }
-  if (job.buildCommit) where.push(`commit: ${escapeHtml(job.buildCommit)}`);
-  if (job.userAgent) where.push(`UA: ${escapeHtml(job.userAgent)}`);
-  if (job.lastApiError) {
-    const error = job.lastApiError;
-    where.push(
-      `lastApiError: ${error.status} ${escapeHtml(error.path)} — ${escapeHtml(error.message)}`,
-    );
-  }
-  return where.length ? `<p>${where.join(' · ')}</p>` : '';
-}
-
-export function buildDescriptionHtml(job: PlaneJob): string {
-  return [buildWhoHtml(job), `<p>${textBlock(job.description)}</p>`, buildWhereHtml(job)]
+export function buildDescriptionHtml(job: IssueBodyInput): string {
+  return [issueWhoHtml(job), `<p>${textBlock(job.description)}</p>`, issueWhereHtml(job)]
     .filter(Boolean)
     .join('');
 }
@@ -102,7 +44,7 @@ export function buildDescriptionHtml(job: PlaneJob): string {
  * adds the auth-scoped fallback links for those.
  */
 export function buildBlockDescriptionHtml(
-  job: PlaneJob,
+  job: IssueBodyInput,
   planeAssetIdByAssetId: ReadonlyMap<string, string>,
 ): string {
   const body: string[] = [];
@@ -120,7 +62,7 @@ export function buildBlockDescriptionHtml(
   // no body. `description` always holds the same words.
   if (!body.length) return buildDescriptionHtml(job);
 
-  return [buildWhoHtml(job), ...body, buildWhereHtml(job)].filter(Boolean).join('');
+  return [issueWhoHtml(job), ...body, issueWhereHtml(job)].filter(Boolean).join('');
 }
 
 /**
@@ -128,12 +70,7 @@ export function buildBlockDescriptionHtml(
  * which is the point: the bytes stay behind the same check as the app.
  */
 export function buildAssetFallbackHtml(publicUrl: string, assetIds: readonly string[]): string {
-  if (!assetIds.length) return '';
-  const base = publicUrl.replace(/\/+$/, '');
-  const links = assetIds
-    .map((id) => `<a href="${escapeHtml(`${base}/assets/${id}`)}">${escapeHtml(id)}</a>`)
-    .join(' · ');
-  return `<p>images (upload to Plane failed, sign in to view): ${links}</p>`;
+  return assetLinksHtml(publicUrl, assetIds, 'images (upload to Plane failed, sign in to view)');
 }
 
 /**
@@ -177,7 +114,7 @@ export function buildAppendCommentHtml(
  * Screenshots Plane refused become auth-scoped links, which is why `publicUrl`
  * is worth configuring — without it a refused image is simply not mentioned.
  */
-export function planeBody(job: PlaneJob, publicUrl = ''): TrackerBody {
+export function planeBody(job: IssueBodyInput, publicUrl = ''): TrackerBody {
   return ({ assetIdByFileName, uploaded }) => {
     const planeAssetIdByAssetId = new Map<string, string>();
     const failed: string[] = [];

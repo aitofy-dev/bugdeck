@@ -2,17 +2,18 @@
  * One stored report, as the tracker needs to hear about it.
  *
  * Pure: the bridge loads the rows, this decides what they mean. That split is
- * what lets the rendering be tested without a store and without a network.
+ * what lets the assembly be tested without a store and without a network.
  *
- * The body renderer is Plane's because Plane is the only adapter that ships
- * today. A second tracker renders differently (GitHub takes Markdown), and the
- * choice belongs in this one file when that happens.
+ * The BODY is not rendered here. Markup belongs to the adapter that has to
+ * display it — Plane inlines images with its own element, GitHub would want
+ * Markdown — so the renderer arrives as an argument and this package imports no
+ * adapter at all.
  */
 import {
   attachmentName,
-  planeBody,
   type CreateIssueJob,
-  type PlaneJob,
+  type IssueBodyInput,
+  type IssueBodyRenderer,
   type TrackerFile,
 } from '@bugdeck/core';
 import type { StoredAsset, StoredReport } from './store.js';
@@ -24,10 +25,10 @@ import type { StoredAsset, StoredReport } from './store.js';
  */
 export const BUGDECK_EXTERNAL_SOURCE = 'bugdeck';
 
-function toPlaneJob(report: StoredReport): PlaneJob {
+/** Stored shape to renderer shape: every absent field becomes an explicit null. */
+export function toIssueBodyInput(report: StoredReport): IssueBodyInput {
   return {
     reportId: report.id,
-    title: report.title,
     description: report.description,
     userEmail: report.ownerEmail ?? '',
     teamName: null,
@@ -38,7 +39,6 @@ function toPlaneJob(report: StoredReport): PlaneJob {
     lastApiError: report.context.lastApiError ?? null,
     assetIds: report.assetIds,
     blocks: report.blocks ?? null,
-    externalId: report.externalId ?? null,
   };
 }
 
@@ -51,7 +51,7 @@ function toPlaneJob(report: StoredReport): PlaneJob {
 export function buildCreateIssueJob(
   report: StoredReport,
   assets: readonly StoredAsset[],
-  publicUrl = '',
+  renderBody: IssueBodyRenderer,
 ): CreateIssueJob {
   const images: TrackerFile[] = assets.map((asset) => ({
     name: attachmentName(asset.id),
@@ -60,7 +60,7 @@ export function buildCreateIssueJob(
   }));
   return {
     title: report.title,
-    descriptionHtml: planeBody(toPlaneJob(report), publicUrl),
+    descriptionHtml: renderBody(toIssueBodyInput(report)),
     externalSource: BUGDECK_EXTERNAL_SOURCE,
     externalId: report.id,
     images,

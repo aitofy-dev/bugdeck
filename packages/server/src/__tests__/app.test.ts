@@ -120,15 +120,27 @@ describe('POST /reports', () => {
     assert.equal(job.externalId, report.id);
     assert.equal(job.images.length, 1);
   });
+
+  it('names an unreadable body instead of answering an empty 400', async () => {
+    const harness = createHarness();
+    const response = await harness.request('/reports', {
+      method: 'POST',
+      headers: { 'content-type': 'multipart/form-data; boundary=nothing-like-this' },
+      body: 'not multipart at all',
+    });
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: 'BAD_REQUEST' });
+  });
 });
 
 describe('authentication', () => {
-  it('answers 401 with no code when the host recognises nobody', async () => {
+  it('answers 401 with a code the widget can translate', async () => {
     const harness = createHarness();
     const response = await harness.request('/reports/mine', {}, null);
 
     assert.equal(response.status, 401);
-    assert.deepEqual(await response.json(), {});
+    assert.deepEqual(await response.json(), { error: 'UNAUTHENTICATED' });
   });
 });
 

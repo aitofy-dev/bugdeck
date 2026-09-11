@@ -11,7 +11,7 @@
  * serial queue means a slow tracker delays reports instead of opening fifty
  * sockets to a board that is already struggling.
  */
-import { consoleLogger, type IssueTracker, type Logger } from '@bugdeck/core';
+import { consoleLogger, issueBodyRenderer, type IssueTracker, type Logger } from '@bugdeck/core';
 import { buildCreateIssueJob } from './issue-job.js';
 import type { FeedbackStore, StoredAsset, StoredReport } from './store.js';
 
@@ -40,6 +40,9 @@ const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(
 
 export function createIssueBridge(options: IssueBridgeOptions): IssueBridge {
   const logger = options.logger ?? consoleLogger;
+  // The tracker's own markup when it has one, plain HTML when it does not. This
+  // package never imports an adapter to find out which.
+  const renderBody = issueBodyRenderer(options.tracker, options.publicUrl ?? '');
   const sleep = options.sleep ?? wait;
   const delays = options.retryDelaysMs ?? RETRY_DELAYS_MS;
   let tail: Promise<void> = Promise.resolve();
@@ -66,7 +69,7 @@ export function createIssueBridge(options: IssueBridgeOptions): IssueBridge {
     if (!report) return;
     if (report.externalId) return;
 
-    const job = buildCreateIssueJob(report, await loadAssets(report), options.publicUrl);
+    const job = buildCreateIssueJob(report, await loadAssets(report), renderBody);
     for (let attempt = 0; ; attempt++) {
       const result = await options.tracker.createIssue(job);
       if (result.ok) {

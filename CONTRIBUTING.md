@@ -13,7 +13,8 @@ pnpm lint        # eslint
 pnpm build       # tsc
 ```
 
-All four must pass before you open a pull request. CI runs the same four on Node 20 and 22.
+All four must pass before you open a pull request. CI runs the same four on Node 20 and 22, and
+scans every commit with gitleaks — install it locally with `brew install gitleaks`.
 
 ## Project structure
 

@@ -11,7 +11,7 @@ export {
   type IssueBridge,
   type IssueBridgeOptions,
 } from './bridge.js';
-export { BUGDECK_EXTERNAL_SOURCE, buildCreateIssueJob } from './issue-job.js';
+export { BUGDECK_EXTERNAL_SOURCE, buildCreateIssueJob, toIssueBodyInput } from './issue-job.js';
 export { defaultLimits, resolveLimits, maxBodyBytes, type FeedbackLimits } from './limits.js';
 export { createRateLimiter, type RateLimiter, type RateLimitOptions } from './rate-limit.js';
 export { createMemoryStore } from './memory-store.js';

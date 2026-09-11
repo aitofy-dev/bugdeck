@@ -34,6 +34,7 @@ import {
   type PlaneHttp,
 } from './client.js';
 import { uploadAttachment, uploadFiles } from './attachments.js';
+import { planeBody } from './html.js';
 import { resolveProjectStates, readUpdates } from './updates.js';
 
 export type { PlaneConfig } from './client.js';
@@ -131,6 +132,15 @@ export function createPlaneTracker(config: PlaneConfig): IssueTracker {
   }
 
   return {
+    /**
+     * Plane inlines an image as `<image-component src="{asset id}">`, and those
+     * ids only exist after the upload — so the body is a function the adapter
+     * renders twice, not a string the caller pre-rendered.
+     */
+    renderBody(job) {
+      return planeBody(job, config.publicUrl ?? '');
+    },
+
     async createIssue(job) {
       if (!isConfigured(config)) {
         return fail({

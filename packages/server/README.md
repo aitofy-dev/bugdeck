@@ -57,9 +57,9 @@ Express strips the mount path before the handler sees it, so the routes below li
 | `GET /assets/:id` | the PNG bytes of one screenshot, `nosniff` and `inline`. Only the owner of the parent report may read it. |
 
 Every 4xx answers with a **code, never a sentence** — `{"error":"TOO_MANY_IMAGES"}`. The widget owns
-the wording so it can be translated: `MISSING_DESCRIPTION`, `TOO_MANY_IMAGES`, `IMAGE_TOO_LARGE`,
-`UNSUPPORTED_IMAGE`, `NOT_PENDING`, `NOT_FOUND`, `RATE_LIMITED`. Filing is limited to 10 reports per
-hour per user.
+the wording so it can be translated: `UNAUTHENTICATED`, `BAD_REQUEST`, `MISSING_DESCRIPTION`,
+`TOO_MANY_IMAGES`, `IMAGE_TOO_LARGE`, `UNSUPPORTED_IMAGE`, `NOT_PENDING`, `NOT_FOUND`,
+`RATE_LIMITED`. Filing is limited to 10 reports per hour per user.
 
 After the 201 the report is queued onto the tracker, off the request: a board being slow or down
 never turns a filed bug into a 500. The create is idempotent on `externalSource=bugdeck` plus the
@@ -116,6 +116,12 @@ curl -X POST http://localhost:3131/reports \
 
 `code` (`PROJ-12`) appears once the tracker has accepted the issue — a second later, on
 `GET /reports/:id`.
+
+## Another tracker
+
+`tracker` is any `IssueTracker` from `@bugdeck/core` — two required methods. An adapter that renders
+its own markup (Plane inlines images with its own element) supplies `renderBody`; one that does not
+gets the plain HTML renderer in core, which is why nothing in this package imports an adapter.
 
 ## Storage
 

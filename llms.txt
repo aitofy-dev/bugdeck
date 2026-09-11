@@ -1,0 +1,160 @@
+# bugdeck
+
+Open-source Marker.io / BugHerd alternative — self-hosted bug reports with screenshot, annotation
+& element picker. Files into Plane, GitHub, Linear.
+
+v0.1 ships the Plane adapter. GitHub and Linear are the next two files (see Roadmap).
+npm: bugdeck (React widget), @bugdeck/server (HTTP API), @bugdeck/core (contract + adapters).
+License MIT. Node >= 20. React >= 18 peer. Zero telemetry.
+
+## Index
+
+This file is the whole story in one page. The same material, split up, lives next to it:
+
+  packages/widget/README.md   The widget: props, styling tokens, translating, wire format, gotchas.
+  packages/server/README.md   The API: routes, mounting, environment, storage, AUTH_MODE.
+  packages/core/README.md     The contract, the two entry points, writing a tracker adapter.
+  examples/vite-react/        The demo app in the GIF: a dashboard with a fixed sidebar.
+  examples/server-plane/      The standalone server, in one file.
+  CONTRIBUTING.md             Clone, install, test, PR. SECURITY.md, CHANGELOG.md as usual.
+
+## Why
+
+Your users can already tell you what is broken. What they cannot do is tell you which element, at
+which viewport, on which build, after which failed request — so every bug report costs a round trip
+that starts with "can you send a screenshot?".
+
+The capture layer that fixes this is what Marker.io, BugHerd and Userback charge $39-149/month for,
+and it is the whole of this repository. The reports land on your server, in your tracker, with your
+auth in front of them.
+
+Compared with the paid tools (entry tiers as published at the time of writing; "?" means the vendor
+does not document it either way):
+
+  Marker.io    from $39/mo   hosted   closed   screenshot, annotate, element picker, GitHub, Linear
+  BugHerd      from $49/mo   hosted   closed   screenshot, annotate, element picker, GitHub, Linear
+  Userback     from $49/mo   hosted   closed   screenshot, annotate, element picker, GitHub, Linear
+  Jam.dev      free tier, then per-user, hosted, closed
+  FasterFixes  free          self-hosted, open source, screenshot, annotate, GitHub, Linear
+  bugdeck      free          self-hosted, open source, screenshot, annotate, element picker,
+                             per-page drafts, Plane today, GitHub and Linear planned
+
+No other tool in this category files into Plane.
+
+## 30-second quick start
+
+1. The widget, in your React app:
+
+   pnpm add bugdeck          # react and react-dom >= 18 are peers
+
+   import { FeedbackWidget } from 'bugdeck';
+
+   <FeedbackWidget apiBase="http://localhost:3131" />;
+
+   That is the whole integration: a floating button, bottom right.
+
+2. The server, anywhere Node runs:
+
+   PLANE_BASE_URL=https://plane.example.com \
+   PLANE_API_KEY=plane_api_xxxxxxxx \
+   PLANE_WORKSPACE_SLUG=acme \
+   PLANE_PROJECT_ID=00000000-0000-0000-0000-000000000000 \
+   npx @bugdeck/server
+
+   It resolves your board's columns, prints the map, and listens on :3131. Reports are SQLite rows
+   and PNGs on disk; the issue appears in Plane a second after the user presses Send.
+
+Already have a server? Mount the app in it and keep your own auth — four lines, in
+packages/server/README.md. Docker Compose and every environment variable are there too.
+
+## How it works
+
+  [ your app + <FeedbackWidget/> ]  --multipart-->  [ @bugdeck/server ]  --IssueTracker-->  [ Plane ]
+     screenshot, annotation             POST /reports    SQLite + PNGs on disk       issue + attachments
+     element pick, context                               your resolveUser()          code back: PROJ-12
+
+The store is the source of truth and the tracker is a mirror: filing happens after the user has been
+answered, so a board that is slow or down never turns a filed bug into a 500. The create is
+idempotent on externalSource=bugdeck plus the report id, so a retry adopts the issue instead of
+duplicating it.
+
+## What the user gets
+
+- Capture the page, or one element: a devtools-style picker highlights what is under the cursor and
+  photographs exactly that box.
+- Draw on it: pen, box, arrow, and a real crop that cuts from the full-resolution image. Undo covers
+  the crop too.
+- Write with the pictures inline: a block editor, so the order of "here is what I did, here is what
+  I saw" survives all the way to the issue.
+- Drafts that survive a refresh: autosaved per page, restored with one line of notice. Closing the
+  tab keeps them.
+- Paste, drop or upload images. Up to 10 per report, 10 MB each, re-encoded server-side.
+- Automatic context: URL, viewport and pixel ratio, user agent, build commit, and the last API
+  failure the app saw before the report was filed.
+- Light and dark, one accent colour prop, and a launcher in any of the four corners.
+
+## What the operator gets
+
+- Self-hosted, SQLite by default. One container, one volume. No database to run.
+- Your auth, not ours. resolveUser(request) is a function you write; null is a 401.
+- Ownership, not tenancy. Someone else's report is a 404 — a stranger has no business learning that
+  an id exists.
+- Images are re-encoded before anything is stored: magic bytes, no SVG or GIF, 5000x5000 ceiling,
+  nosniff on the way out.
+- Rate limited to 10 reports per hour per user, in memory, no Redis.
+- Codes, never sentences. A 4xx answers {"error":"RATE_LIMITED"} so the wording — and the language —
+  stays in the widget.
+
+## Shopify / WordPress
+
+No app, no plugin, no marketplace listing. One snippet in the theme (Shopify: layout/theme.liquid
+before </body>; WordPress: footer.php before </body>), importing React and the widget from a CDN
+with ?deps= pinning them to one React copy. A single-file <script> build that carries its own
+renderer is planned. A storefront visitor is a shopper, not a tester: this is for your staff, on the
+admin and theme-preview pages.
+
+## Translating
+
+The server never sends a sentence, so one object translates the entire surface, error codes
+included:
+
+  <FeedbackWidget
+    apiBase="/api"
+    strings={{
+      launcherLabel: 'Signaler un bug',
+      send: 'Envoyer',
+      errors: { RATE_LIMITED: 'Trop de rapports cette heure-ci.' },
+    }}
+  />
+
+Anything left out falls back to English, and errors merges one level deeper so a single code can be
+overridden on its own. Every key is listed in packages/widget/README.md.
+
+## Packages
+
+  bugdeck           The React widget your users click.            packages/widget/README.md
+  @bugdeck/server   The HTTP API: stores reports, files them.     packages/server/README.md
+  @bugdeck/core     The contract both speak, and IssueTracker.    packages/core/README.md
+
+@bugdeck/core has two entry points: @bugdeck/core/contract is browser-safe (wire contract, block
+parsing, derived titles, thread folding) and the root adds image sanitisation and the adapters.
+
+## Roadmap
+
+- GitHub Issues adapter — the next release. One file, same seam.
+- Linear adapter.
+- Conversation sync: tracker comments starting with @user come back to the reporter as a thread, and
+  their replies go back up.
+- <script> embed: a bundled build for pages with no React of their own.
+
+One adapter is one file plus one registration line; see CONTRIBUTING.md.
+
+## Zero telemetry
+
+No analytics, no phone-home, no network call you did not ask for. The only host this software talks
+to is the tracker you configured. Nothing is logged that a proxy password or a user's email could
+leak through.
+
+## License
+
+MIT © Aitofy (https://aitofy.dev)

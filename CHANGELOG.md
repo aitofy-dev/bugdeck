@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`PATCH /reports/:id`** — rewrite a report while nobody has read it. Allowed only in `pending`;
+  anything later answers `409 {"error":"NOT_PENDING"}`, because silently changing the sentence an
+  admin planned from is how two people end up debugging different bugs. Images the report already
+  has are kept by id rather than re-uploaded, so the tracker recognises its own attachments instead
+  of collecting a second copy of every screenshot.
+- **`POST /reports/:id/comment`** — say something on a report in **every** state, `done` included.
+  "It is still broken" is the most valuable message on the page and it always arrives after the
+  item was closed. Capped at 20 messages from the user per report.
+- **Comments survive a tracker that is not ready.** The message is stored first and posted after,
+  on the same queue as the create — so one written while the issue was still being retried is
+  posted the moment the issue exists. Each is marked with the tracker's comment id, which is what
+  keeps a retry from saying it twice.
+- **`EditableTracker`** in `@aitofy/bugdeck-server`: `IssueTracker` plus an optional `updateIssue`.
+  `serve` wraps the Plane adapter with it; a tracker without it keeps the text the report was filed
+  with.
+- **`FeedbackStore.markThreadMirrored`** records that one thread entry reached the tracker. A store
+  written against 0.1.0 needs this one method added.
+
 ## [0.1.0] - 2026-09-12
 
 First release. Three packages, published together: `@aitofy/bugdeck` (the React widget), `@aitofy/bugdeck-server`

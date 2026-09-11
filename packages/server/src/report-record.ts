@@ -6,8 +6,13 @@
  * about what an update means — a disagreement that would only ever show up as
  * "it works in the tests".
  */
-import { buildThread, type FeedbackReport, type FeedbackThreadEntry } from '@aitofy/bugdeck-core';
-import type { NewReport, ReportUpdate, StoredReport } from './store.js';
+import {
+  buildThread,
+  countUserTurns,
+  type FeedbackReport,
+  type FeedbackThreadEntry,
+} from '@aitofy/bugdeck-core';
+import type { NewReport, ReportUpdate, StoredReport, StoredThreadEntry } from './store.js';
 
 export function newReportRecord(input: NewReport, now: string): StoredReport {
   return {
@@ -54,11 +59,37 @@ export function applyReportUpdate(
 
 export function appendThreadEntries(
   report: StoredReport,
-  entries: readonly FeedbackThreadEntry[],
+  entries: readonly StoredThreadEntry[],
   now: string,
 ): StoredReport {
   if (!entries.length) return report;
   return { ...report, thread: [...(report.thread ?? []), ...entries], updatedAt: now };
+}
+
+/**
+ * Stamp the tracker's comment id onto one entry. `updatedAt` is deliberately
+ * left alone: nothing a user reads changed, and moving it would make every
+ * mirrored comment look like a fresh edit to anything watching the timestamp.
+ */
+export function markThreadEntryMirrored(
+  report: StoredReport,
+  index: number,
+  commentId: string,
+): StoredReport {
+  const thread = report.thread ?? [];
+  const entry = thread[index];
+  if (!entry) return report;
+  const patched = [...thread];
+  patched[index] = { ...entry, commentId };
+  return { ...report, thread: patched };
+}
+
+/** How many messages the USER has written here — the only side that is capped. */
+export function userTurnCount(report: StoredReport): number {
+  return countUserTurns(
+    (report.thread ?? []).map((entry) => ({ ...entry, at: new Date(entry.at) })),
+    (report.appends ?? []).map((append) => ({ ...append, createdAt: new Date(append.createdAt) })),
+  );
 }
 
 /**

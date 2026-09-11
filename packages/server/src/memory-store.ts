@@ -5,9 +5,21 @@
  * the API before deciding where reports should really live, and it is what the
  * route tests run against so a route failure is never a database failure.
  */
-import type { FeedbackThreadEntry } from '@aitofy/bugdeck-core';
-import { appendThreadEntries, applyReportUpdate, newReportRecord } from './report-record.js';
-import type { FeedbackStore, NewAsset, NewReport, ReportUpdate, StoredAsset, StoredReport } from './store.js';
+import {
+  appendThreadEntries,
+  applyReportUpdate,
+  markThreadEntryMirrored,
+  newReportRecord,
+} from './report-record.js';
+import type {
+  FeedbackStore,
+  NewAsset,
+  NewReport,
+  ReportUpdate,
+  StoredAsset,
+  StoredReport,
+  StoredThreadEntry,
+} from './store.js';
 
 /** Everything is cloned on the way out: a caller holding a live row can edit it. */
 const clone = <T>(value: T): T => structuredClone(value);
@@ -41,9 +53,14 @@ export function createMemoryStore(): FeedbackStore {
       if (found) reports.set(id, applyReportUpdate(found, update, new Date().toISOString()));
     },
 
-    async appendThread(id: string, entries: readonly FeedbackThreadEntry[]): Promise<void> {
+    async appendThread(id: string, entries: readonly StoredThreadEntry[]): Promise<void> {
       const found = reports.get(id);
       if (found) reports.set(id, appendThreadEntries(found, entries, new Date().toISOString()));
+    },
+
+    async markThreadMirrored(id: string, index: number, commentId: string): Promise<void> {
+      const found = reports.get(id);
+      if (found) reports.set(id, markThreadEntryMirrored(found, index, commentId));
     },
 
     async putAsset(reportId: string, asset: NewAsset): Promise<string> {

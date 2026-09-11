@@ -14,8 +14,12 @@ import { readFile, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import type { Database as SqliteDatabase } from 'better-sqlite3';
-import type { FeedbackThreadEntry } from '@aitofy/bugdeck-core';
-import { appendThreadEntries, applyReportUpdate, newReportRecord } from './report-record.js';
+import {
+  appendThreadEntries,
+  applyReportUpdate,
+  markThreadEntryMirrored,
+  newReportRecord,
+} from './report-record.js';
 import { rowToReport, reportToRow, type ReportRow } from './sqlite-rows.js';
 import type {
   FeedbackStore,
@@ -24,6 +28,7 @@ import type {
   ReportUpdate,
   StoredAsset,
   StoredReport,
+  StoredThreadEntry,
 } from './store.js';
 
 export interface SqliteStoreOptions {
@@ -149,9 +154,14 @@ export function createSqliteStore(options: SqliteStoreOptions): SqliteFeedbackSt
       if (found) save(applyReportUpdate(found, update, new Date().toISOString()));
     },
 
-    async appendThread(id: string, entries: readonly FeedbackThreadEntry[]): Promise<void> {
+    async appendThread(id: string, entries: readonly StoredThreadEntry[]): Promise<void> {
       const found = read(id);
       if (found) save(appendThreadEntries(found, entries, new Date().toISOString()));
+    },
+
+    async markThreadMirrored(id: string, index: number, commentId: string): Promise<void> {
+      const found = read(id);
+      if (found) save(markThreadEntryMirrored(found, index, commentId));
     },
 
     async putAsset(reportId: string, asset: NewAsset): Promise<string> {

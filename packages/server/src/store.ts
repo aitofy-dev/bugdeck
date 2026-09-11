@@ -28,6 +28,17 @@ export interface FeedbackUser {
 }
 
 /**
+ * One turn in the conversation, plus the tracker's receipt for it.
+ *
+ * `commentId` is the idempotency guard on the mirror: a message with no id has
+ * not reached the tracker yet, so a retry posts it and a retry after it landed
+ * does not. It never reaches the wire — `toReportDto` rebuilds the entry.
+ */
+export interface StoredThreadEntry extends FeedbackThreadEntry {
+  commentId?: string;
+}
+
+/**
  * A report plus what the wire never carries: who filed it.
  *
  * The email is stored because the tracker bridge runs AFTER the response, long
@@ -37,6 +48,7 @@ export interface FeedbackUser {
 export interface StoredReport extends FeedbackReport {
   ownerId: string;
   ownerEmail?: string;
+  thread?: StoredThreadEntry[];
 }
 
 export interface NewReport {
@@ -91,7 +103,12 @@ export interface FeedbackStore {
   /** A no-op for an id that is not there: the caller checked ownership already. */
   updateReport(id: string, update: ReportUpdate): Promise<void>;
   /** APPENDS, never replaces — the user may be writing while a sync pass runs. */
-  appendThread(id: string, entries: readonly FeedbackThreadEntry[]): Promise<void>;
+  appendThread(id: string, entries: readonly StoredThreadEntry[]): Promise<void>;
+  /**
+   * Record that one thread entry reached the tracker. `index` is its position
+   * in `thread`, which only ever grows, so it stays valid across an append.
+   */
+  markThreadMirrored(id: string, index: number, commentId: string): Promise<void>;
   putAsset(reportId: string, asset: NewAsset): Promise<string>;
   getAsset(id: string): Promise<StoredAsset | null>;
 }

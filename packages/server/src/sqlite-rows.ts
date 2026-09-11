@@ -8,9 +8,9 @@
  * Pure and separate from the store so the mapping can be tested without opening
  * a database, and so the store file stays about storage.
  */
-import type { FeedbackBlock, FeedbackContext, FeedbackState, FeedbackThreadEntry } from '@aitofy/bugdeck-core';
+import type { FeedbackBlock, FeedbackContext, FeedbackState } from '@aitofy/bugdeck-core';
 import type { FeedbackAppend } from '@aitofy/bugdeck-core';
-import type { StoredReport } from './store.js';
+import type { StoredReport, StoredThreadEntry } from './store.js';
 
 export interface ReportRow {
   id: string;
@@ -72,7 +72,7 @@ const EMPTY_CONTEXT: FeedbackContext = {
 
 export function rowToReport(row: ReportRow): StoredReport {
   const blocks = readJson<FeedbackBlock[]>(row.blocks, []);
-  const thread = readJson<FeedbackThreadEntry[]>(row.thread, []);
+  const thread = readJson<StoredThreadEntry[]>(row.thread, []);
   const appends = readJson<FeedbackAppend[]>(row.appends, []);
   return {
     id: row.id,

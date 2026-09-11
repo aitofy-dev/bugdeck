@@ -1,14 +1,16 @@
 /**
  * The HTTP surface: five routes, mountable anywhere.
  *
- *   POST /reports      multipart — description, context, an optional block
- *                      layout and up to `maxAssets` screenshots under a
- *                      repeated `images` key
- *   GET  /reports/mine my reports, newest first, without their threads
- *   GET  /reports/:id  one report, with the conversation folded in
- *   GET  /assets/:id   the PNG bytes of one screenshot
+ *   POST  /reports             multipart — description, context, an optional
+ *                             block layout and up to `maxAssets` screenshots
+ *                             under a repeated `images` key
+ *   PATCH /reports/:id         the same body again, while nobody has read it
+ *   POST  /reports/:id/comment the same body as a message, in ANY state
+ *   GET   /reports/mine        my reports, newest first, without their threads
+ *   GET   /reports/:id         one report, with the conversation folded in
+ *   GET   /assets/:id          the PNG bytes of one screenshot
  *
- * Three rules run through all of it:
+ * Four rules run through all of it:
  *
  *  1. A refusal is a CODE, never a sentence — `{error: 'TOO_MANY_IMAGES'}`. The
  *     widget owns the wording so it can be translated; a server that answers in
@@ -18,27 +20,33 @@
  *  3. The tracker enters after the response and never before. The report is
  *     saved either way, and a board being down must not turn a filed bug into a
  *     500.
+ *  4. Editing stops the moment someone has read the report; commenting never
+ *     does. "It is still broken" is the most valuable sentence on the page and
+ *     it always arrives after the item was closed.
  */
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import {
+  canEditFeedback,
   deriveTitle,
   parseFeedbackBlocks,
+  FEEDBACK_MAX_COMMENTS,
   type ErrorCode,
-  type IssueTracker,
   type Logger,
   type SanitizedImage,
 } from '@aitofy/bugdeck-core';
+import { commentOnReport, editReport, type AmendContext } from './amend-report.js';
 import { createIssueBridge } from './bridge.js';
+import type { EditableTracker } from './editable-tracker.js';
 import { maxBodyBytes, resolveLimits, type FeedbackLimits } from './limits.js';
 import { createRateLimiter } from './rate-limit.js';
-import { toReportDto } from './report-record.js';
-import { readSubmission, type ParsedForm } from './submission.js';
-import type { FeedbackStore, FeedbackUser } from './store.js';
+import { toReportDto, userTurnCount } from './report-record.js';
+import { readSubmission, type ParsedForm, type Submission } from './submission.js';
+import type { FeedbackStore, FeedbackUser, StoredReport } from './store.js';
 
 export interface FeedbackAppOptions {
-  tracker: IssueTracker;
+  tracker: EditableTracker;
   store: FeedbackStore;
   /**
    * The host's auth, as a function. `null` is a 401 — this package never
@@ -151,6 +159,78 @@ export function createFeedbackApp(options: FeedbackAppOptions): Hono<FeedbackEnv
 
     bridge.enqueue(report.id);
     return c.json(toReportDto(report, { thread: true }), 201);
+  });
+
+  const amendContext = (user: FeedbackUser): AmendContext => ({
+    store,
+    maxAssets: limits.maxAssets,
+    userEmail: user.email,
+  });
+
+  /**
+   * What both write routes check before they read a byte of the body: the
+   * write budget, the size ceiling, and that this report is the caller's own.
+   * Someone else's report answers 404, never 403.
+   */
+  async function openWrite(
+    c: Context,
+    user: FeedbackUser,
+    id: string,
+  ): Promise<StoredReport | Response> {
+    if (!rateLimiter.take(user.id)) return refuse(c, 429, 'RATE_LIMITED');
+    if (Number(c.req.header('content-length') ?? 0) > bodyCeiling) {
+      return refuse(c, 413, 'IMAGE_TOO_LARGE');
+    }
+    const report = await store.getReport(id);
+    if (!report || report.ownerId !== user.id) return refuse(c, 404, 'NOT_FOUND');
+    return report;
+  }
+
+  /** The body half of a write, shared so the two routes cannot parse it differently. */
+  async function readWrite(c: Context): Promise<Submission | Response> {
+    const form = await readForm(c, logger);
+    if (!form) return refuse(c, 400, 'BAD_REQUEST');
+    const submission = await readSubmission(form, limits);
+    return submission.ok ? submission.value : refuse(c, 400, submission.error);
+  }
+
+  /**
+   * Rewrite a report nobody has picked up yet. From `doing` onwards someone has
+   * already read it, and silently changing the text under them is how two
+   * people end up debugging different bugs — so it is a 409 and a comment.
+   */
+  app.patch('/reports/:id', async (c) => {
+    const user = c.get('user');
+    const report = await openWrite(c, user, c.req.param('id'));
+    if (report instanceof Response) return report;
+    if (!canEditFeedback(report.state)) return refuse(c, 409, 'NOT_PENDING');
+
+    const submission = await readWrite(c);
+    if (submission instanceof Response) return submission;
+
+    const uploaded = await storeImages(store, report.id, submission.images);
+    const updated = await editReport(amendContext(user), report, submission, uploaded);
+    bridge.enqueueEdit(updated.id);
+    return c.json(toReportDto(updated, { thread: true }));
+  });
+
+  /**
+   * Say something on a report, in EVERY state. The cap is on the user's side of
+   * the conversation only: a report is a bug report, not a forum.
+   */
+  app.post('/reports/:id/comment', async (c) => {
+    const user = c.get('user');
+    const report = await openWrite(c, user, c.req.param('id'));
+    if (report instanceof Response) return report;
+    if (userTurnCount(report) >= FEEDBACK_MAX_COMMENTS) return refuse(c, 429, 'RATE_LIMITED');
+
+    const submission = await readWrite(c);
+    if (submission instanceof Response) return submission;
+
+    const uploaded = await storeImages(store, report.id, submission.images);
+    const updated = await commentOnReport(amendContext(user), report, submission, uploaded);
+    bridge.enqueueComment(updated.id);
+    return c.json(toReportDto(updated, { thread: true }), 201);
   });
 
   app.get('/reports/mine', async (c) => {

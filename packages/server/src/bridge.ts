@@ -11,12 +11,14 @@
  * serial queue means a slow tracker delays reports instead of opening fifty
  * sockets to a board that is already struggling.
  */
-import { consoleLogger, issueBodyRenderer, type IssueTracker, type Logger } from '@aitofy/bugdeck-core';
+import { consoleLogger, issueBodyRenderer, type Logger } from '@aitofy/bugdeck-core';
+import type { EditableTracker } from './editable-tracker.js';
 import { buildCreateIssueJob } from './issue-job.js';
-import type { FeedbackStore, StoredAsset, StoredReport } from './store.js';
+import { loadAssets, mirrorComments, mirrorEdit, type MirrorDeps } from './mirror.js';
+import type { FeedbackStore } from './store.js';
 
 export interface IssueBridgeOptions {
-  tracker: IssueTracker;
+  tracker: EditableTracker;
   store: FeedbackStore;
   logger?: Logger;
   /** Base for auth-scoped asset links, used when the tracker refuses an upload. */
@@ -29,6 +31,10 @@ export interface IssueBridgeOptions {
 export interface IssueBridge {
   /** Fire-and-forget: returns immediately, the work happens on the queue. */
   enqueue(reportId: string): void;
+  /** Push an edited report back onto the issue it already became. */
+  enqueueEdit(reportId: string): void;
+  /** Post every message the issue has not heard yet, this one included. */
+  enqueueComment(reportId: string): void;
   /** Resolves once the queue is empty. For shutdown, and for tests. */
   drain(): Promise<void>;
 }
@@ -47,16 +53,13 @@ export function createIssueBridge(options: IssueBridgeOptions): IssueBridge {
   const delays = options.retryDelaysMs ?? RETRY_DELAYS_MS;
   let tail: Promise<void> = Promise.resolve();
 
-  async function loadAssets(report: StoredReport): Promise<StoredAsset[]> {
-    const assets: StoredAsset[] = [];
-    for (const assetId of report.assetIds) {
-      const asset = await options.store.getAsset(assetId);
-      // A missing screenshot costs the issue one picture, never the issue.
-      if (asset) assets.push(asset);
-      else logger.warn('bugdeck asset missing at file time', { reportId: report.id, assetId });
-    }
-    return assets;
-  }
+  const mirror: MirrorDeps = {
+    tracker: options.tracker,
+    store: options.store,
+    logger,
+    publicUrl: options.publicUrl ?? '',
+    renderBody,
+  };
 
   /**
    * Retries are safe because the tracker dedupes on `externalSource` +
@@ -69,7 +72,7 @@ export function createIssueBridge(options: IssueBridgeOptions): IssueBridge {
     if (!report) return;
     if (report.externalId) return;
 
-    const job = buildCreateIssueJob(report, await loadAssets(report), renderBody);
+    const job = buildCreateIssueJob(report, await loadAssets(mirror, reportId, report.assetIds), renderBody);
     for (let attempt = 0; ; attempt++) {
       const result = await options.tracker.createIssue(job);
       if (result.ok) {
@@ -78,6 +81,9 @@ export function createIssueBridge(options: IssueBridgeOptions): IssueBridge {
           code: result.value.code,
         });
         logger.info('bugdeck report filed', { reportId, code: result.value.code });
+        // Anything the user wrote while the issue did not exist is waiting in
+        // the thread; this is the first moment it can be posted.
+        await mirrorComments(mirror, reportId);
         return;
       }
 
@@ -95,15 +101,31 @@ export function createIssueBridge(options: IssueBridgeOptions): IssueBridge {
     }
   }
 
+  /**
+   * One serial queue for all three passes, so a comment can never be posted
+   * before the issue that carries it exists. Nothing above the catch: an
+   * unhandled rejection here would take the process down over a mirror that is
+   * allowed to fail.
+   */
+  function run(pass: string, reportId: string, work: () => Promise<void>): void {
+    tail = tail.then(() =>
+      work().catch((err: unknown) => {
+        logger.error('bugdeck bridge crashed', { pass, reportId, err: String(err) });
+      }),
+    );
+  }
+
   return {
     enqueue(reportId: string): void {
-      tail = tail.then(() =>
-        file(reportId).catch((err: unknown) => {
-          // Nothing above this catches: an unhandled rejection here would take
-          // the process down over a mirror that is allowed to fail.
-          logger.error('bugdeck bridge crashed', { reportId, err: String(err) });
-        }),
-      );
+      run('create', reportId, () => file(reportId));
+    },
+
+    enqueueEdit(reportId: string): void {
+      run('edit', reportId, () => mirrorEdit(mirror, reportId));
+    },
+
+    enqueueComment(reportId: string): void {
+      run('comment', reportId, () => mirrorComments(mirror, reportId));
     },
 
     async drain(): Promise<void> {

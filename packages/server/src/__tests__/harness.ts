@@ -3,8 +3,9 @@
  * network, and an app wired to a memory store.
  */
 import sharp from 'sharp';
-import { ok, silentLogger, type CreateIssueJob, type IssueTracker } from '@aitofy/bugdeck-core';
+import { ok, silentLogger, type CreateIssueJob } from '@aitofy/bugdeck-core';
 import { createFeedbackApp } from '../app.js';
+import type { EditableTracker, IssueUpdateInput } from '../editable-tracker.js';
 import { createMemoryStore } from '../memory-store.js';
 import type { FeedbackStore, FeedbackUser } from '../store.js';
 
@@ -19,31 +20,75 @@ export function pngBytes(size = 4): Promise<Buffer> {
     .toBuffer();
 }
 
-export interface FakeTracker {
-  tracker: IssueTracker;
-  calls: CreateIssueJob[];
-  /** Resolves the first time an issue is filed, so a test need not poll. */
-  filed: Promise<CreateIssueJob>;
+export interface FakeComment {
+  externalId: string;
+  html: string;
 }
 
-export function createFakeTracker(): FakeTracker {
+export interface FakeTracker {
+  tracker: EditableTracker;
+  calls: CreateIssueJob[];
+  comments: FakeComment[];
+  updates: Array<{ externalId: string; input: IssueUpdateInput }>;
+  uploads: string[];
+  /** Resolves the first time an issue is filed, so a test need not poll. */
+  filed: Promise<CreateIssueJob>;
+  /** Lets the create finish. Only meaningful when the tracker was held. */
+  release(): void;
+}
+
+export interface FakeTrackerOptions {
+  /**
+   * Hold `createIssue` until `release()` — the only way to reach the window
+   * where a report exists and its issue does not.
+   */
+  held?: boolean;
+}
+
+export function createFakeTracker(options: FakeTrackerOptions = {}): FakeTracker {
   const calls: CreateIssueJob[] = [];
+  const comments: FakeComment[] = [];
+  const updates: Array<{ externalId: string; input: IssueUpdateInput }> = [];
+  const uploads: string[] = [];
+
   let announce: (job: CreateIssueJob) => void = () => {};
   const filed = new Promise<CreateIssueJob>((resolve) => {
     announce = resolve;
   });
+  let release = (): void => {};
+  const gate = options.held
+    ? new Promise<void>((resolve) => {
+        release = resolve;
+      })
+    : Promise.resolve();
 
   return {
     calls,
+    comments,
+    updates,
+    uploads,
     filed,
+    release: () => {
+      release();
+    },
     tracker: {
       async createIssue(job) {
+        await gate;
         calls.push(job);
         announce(job);
         return ok({ externalId: 'issue-1', code: 'DEMO-1' });
       },
-      async addComment() {
-        return ok({ commentId: 'comment-1' });
+      async addComment(externalId, html) {
+        comments.push({ externalId, html });
+        return ok({ commentId: `comment-${comments.length}` });
+      },
+      async uploadAttachment(_externalId, file) {
+        uploads.push(file.name);
+        return ok({ assetId: `plane-${uploads.length}`, name: file.name });
+      },
+      async updateIssue(externalId, input) {
+        updates.push({ externalId, input });
+        return ok(undefined);
       },
     },
   };
@@ -58,9 +103,9 @@ export interface Harness {
 /** The header the test suite authenticates with, mirroring `AUTH_MODE=header`. */
 const AS_USER = 'x-test-user';
 
-export function createHarness(options: { store?: FeedbackStore } = {}): Harness {
+export function createHarness(options: { store?: FeedbackStore; held?: boolean } = {}): Harness {
   const store = options.store ?? createMemoryStore();
-  const tracker = createFakeTracker();
+  const tracker = createFakeTracker(options.held ? { held: true } : {});
   const users = new Map([
     [USER.id, USER],
     [OTHER_USER.id, OTHER_USER],
@@ -105,3 +150,19 @@ export function reportForm(input: ReportForm): FormData {
 
 export const pngBlob = async (): Promise<Blob> =>
   new Blob([await pngBytes()], { type: 'image/png' });
+
+/**
+ * Wait for the background queue to get somewhere. The bridge runs off the
+ * request on purpose, so a test that asserts straight after a response asserts
+ * on a race.
+ */
+export async function until(
+  check: () => boolean | Promise<boolean>,
+  timeoutMs = 4000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!(await check())) {
+    if (Date.now() > deadline) throw new Error('condition was never met');
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}

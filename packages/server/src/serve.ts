@@ -15,12 +15,16 @@ import { cors } from 'hono/cors';
 import {
   consoleLogger,
   createPlaneTracker,
+  ok,
   resolveHttp,
   resolveProjectStates,
+  updateIssue as updatePlaneIssue,
   type FeedbackState,
   type Logger,
+  type PlaneConfig,
 } from '@aitofy/bugdeck-core';
 import { createFeedbackApp, type FeedbackEnv } from './app.js';
+import type { EditableTracker } from './editable-tracker.js';
 import { AUTH_HEADER_WARNING, headerUser, USER_EMAIL_HEADER, USER_ID_HEADER, USER_NAME_HEADER } from './auth-header.js';
 import { readServerConfig, type Environment, type ServerConfig } from './config.js';
 import { createSqliteStore } from './sqlite-store.js';
@@ -56,6 +60,22 @@ function withCors(config: ServerConfig, app: Hono<FeedbackEnv>): Hono<FeedbackEn
   return root;
 }
 
+/**
+ * Plane can rewrite an issue, but `IssueTracker` has no word for it yet — the
+ * adapter exports `updateIssue` on its own. Delete this wrapper once core
+ * carries the optional method.
+ */
+function editablePlaneTracker(config: PlaneConfig): EditableTracker {
+  const tracker = createPlaneTracker(config);
+  return {
+    ...tracker,
+    async updateIssue(externalId, input) {
+      const result = await updatePlaneIssue(config, externalId, input);
+      return result.ok ? ok(undefined) : result;
+    },
+  };
+}
+
 export async function serve(options: ServeOptions = {}): Promise<ServeResult> {
   const logger = options.logger ?? consoleLogger;
   const parsed = readServerConfig(options.env ?? process.env);
@@ -72,7 +92,7 @@ export async function serve(options: ServeOptions = {}): Promise<ServeResult> {
 
   const store = createSqliteStore({ storagePath: config.storagePath });
   const app = createFeedbackApp({
-    tracker: createPlaneTracker(plane),
+    tracker: editablePlaneTracker(plane),
     store,
     resolveUser: headerUser,
     logger,

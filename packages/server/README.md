@@ -52,6 +52,8 @@ Express strips the mount path before the handler sees it, so the routes below li
 | Route | What it does |
 |-------|--------------|
 | `POST /reports` | multipart: `description`, `context` (JSON), `blocks` (JSON, optional) and up to 10 screenshots under a repeated `images` key. Every image is re-encoded before anything is stored. |
+| `PATCH /reports/:id` | the same body again, rewriting the report. Allowed **only while `state` is `pending`** — once someone has picked it up the answer is `409 {"error":"NOT_PENDING"}` and the way to add something is a comment. Images the report already has travel as `{"kind":"image","assetId":"…"}` blocks instead of being uploaded again; `imageIndex` counts only the files actually in this body. |
+| `POST /reports/:id/comment` | the same body as a message on the conversation. Allowed in **every** state, `done` and `fail` included — "it is still broken" always arrives after the item was closed. Capped at 20 messages from the user per report. |
 | `GET /reports/mine` | the caller's own reports, newest first, without their conversations. `?limit=` caps at 50. |
 | `GET /reports/:id` | one report, with the conversation folded in. Someone else's report is a 404. |
 | `GET /assets/:id` | the PNG bytes of one screenshot, `nosniff` and `inline`. Only the owner of the parent report may read it. |
@@ -59,11 +61,18 @@ Express strips the mount path before the handler sees it, so the routes below li
 Every 4xx answers with a **code, never a sentence** — `{"error":"TOO_MANY_IMAGES"}`. The widget owns
 the wording so it can be translated: `UNAUTHENTICATED`, `BAD_REQUEST`, `MISSING_DESCRIPTION`,
 `TOO_MANY_IMAGES`, `IMAGE_TOO_LARGE`, `UNSUPPORTED_IMAGE`, `NOT_PENDING`, `NOT_FOUND`,
-`RATE_LIMITED`. Filing is limited to 10 reports per hour per user.
+`RATE_LIMITED`. The three write routes share one budget of 10 requests per hour per user.
 
 After the 201 the report is queued onto the tracker, off the request: a board being slow or down
 never turns a filed bug into a 500. The create is idempotent on `externalSource=bugdeck` plus the
-report id, so a retry adopts the issue instead of duplicating it.
+report id, so a retry adopts the issue instead of duplicating it. Edits and comments ride the same
+queue, so a message written while the issue was still being retried is posted the moment it exists
+rather than lost — each one is marked with the tracker's comment id, which is what keeps a retry
+from saying it twice.
+
+A tracker that can rewrite an issue says so with an optional `updateIssue`, which is what
+`EditableTracker` in this package adds to `IssueTracker`; `serve` wraps the Plane adapter with it.
+A tracker without it keeps the text the report was filed with, and the edit stays local.
 
 ## Standalone
 
@@ -129,7 +138,7 @@ gets the plain HTML renderer in core, which is why nothing in this package impor
 files under `${STORAGE_PATH}/assets/`. A 10 MB blob per row turns every query into a file copy;
 on disk they are files an operator can count, rsync and delete.
 
-Already have a database? Implement `FeedbackStore` — seven methods — and pass it as `store`.
+Already have a database? Implement `FeedbackStore` — eight methods — and pass it as `store`.
 `createMemoryStore()` ships too, for tests and for trying the API before deciding.
 
 ## License

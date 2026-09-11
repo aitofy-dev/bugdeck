@@ -107,7 +107,7 @@ idempotent, so a retry adopts the issue instead of duplicating it.
   that an id exists.
 - **Images are re-encoded** before anything is stored: magic bytes, no SVG or GIF, 5000×5000
   ceiling, `nosniff` on the way out.
-- **Rate limited** to 10 reports per hour per user, in memory, no Redis.
+- **Rate limited** to 10 writes per hour per user, in memory, no Redis.
 - **Codes, never sentences.** A 4xx answers `{"error":"RATE_LIMITED"}` so the wording — and the
   language — stays in the widget.
 

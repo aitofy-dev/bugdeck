@@ -47,8 +47,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { WIDGET_ROOT_ATTR } from './capture.js';
+import { Icon } from './icons.js';
+import { applyImportant, pickerBox, pickerLayerDecls, tipPosition } from './picker-styles.js';
 import { useWidgetStrings } from './strings-context.js';
-import * as s from './styles.js';
+import { useWidgetStyles } from './styles/sheet.js';
+import { THEME_ATTR, type WidgetTheme } from './theme.js';
 
 export interface PickedRect {
   top: number;
@@ -59,8 +62,17 @@ export interface PickedRect {
 
 export interface ElementPickerProps {
   zIndex: number;
+  theme: WidgetTheme;
+  accent?: string;
   onPick: (element: HTMLElement) => void;
   onCancel: () => void;
+}
+
+/** `tag.class` for the tooltip — what devtools would call the thing under the cursor. */
+export function elementLabel(element: Element): string {
+  const tag = element.tagName.toLowerCase();
+  const first = element.classList.item(0);
+  return first ? `${tag}.${first}` : tag;
 }
 
 /** Never let the user select the picker itself, or the widget it belongs to. */
@@ -111,30 +123,44 @@ function useCrosshairCursor(): void {
  * recognise it as ours even though it is no longer a DOM descendant of the
  * widget root.
  */
-function PickerLayer({ zIndex, children }: { zIndex: number; children: ReactNode }) {
+function PickerLayer({
+  zIndex,
+  theme,
+  accent,
+  children,
+}: {
+  zIndex: number;
+  theme: WidgetTheme;
+  accent?: string;
+  children: ReactNode;
+}) {
   const [host, setHost] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const node = document.createElement('div');
     node.setAttribute(WIDGET_ROOT_ATTR, '');
-    s.applyImportant(node.style, s.pickerLayerDecls(zIndex));
+    node.setAttribute(THEME_ATTR, theme);
+    if (accent) node.style.setProperty('--bd-accent', accent);
+    applyImportant(node.style, pickerLayerDecls(zIndex));
     document.body.appendChild(node);
     setHost(node);
     return () => {
       node.remove();
       setHost(null);
     };
-  }, [zIndex]);
+  }, [accent, theme, zIndex]);
 
   return host ? createPortal(children, host) : null;
 }
 
-export function ElementPicker({ zIndex, onPick, onCancel }: ElementPickerProps) {
+export function ElementPicker({ zIndex, theme, accent, onPick, onCancel }: ElementPickerProps) {
   const strings = useWidgetStrings();
   const [rect, setRect] = useState<PickedRect | null>(null);
+  const [tip, setTip] = useState<{ label: string; x: number; y: number } | null>(null);
   const hovered = useRef<HTMLElement | null>(null);
 
+  useWidgetStyles();
   useCrosshairCursor();
 
   const under = useCallback(
@@ -156,6 +182,11 @@ export function ElementPicker({ zIndex, onPick, onCancel }: ElementPickerProps) 
       const element = under(event.clientX, event.clientY);
       hovered.current = element;
       setRect(element ? toRect(element) : null);
+      setTip(
+        element
+          ? { label: elementLabel(element), x: event.clientX, y: event.clientY }
+          : null,
+      );
     };
 
     // Nothing of ours intercepts the pointer any more, so every press has to be
@@ -186,9 +217,23 @@ export function ElementPicker({ zIndex, onPick, onCancel }: ElementPickerProps) 
   }, [onCancel, onPick, under]);
 
   return (
-    <PickerLayer zIndex={zIndex}>
-      <div style={s.pickerBanner()}>{strings.pickRegionBanner}</div>
-      {rect && <div style={s.pickerBox(rect)} />}
+    <PickerLayer zIndex={zIndex} theme={theme} accent={accent}>
+      <div className="bd-picker-banner">
+        <Icon name="target" />
+        {strings.pickRegionBanner}
+      </div>
+      {rect && <div style={pickerBox(rect, accent)} />}
+      {tip && (
+        <div
+          className="bd-picker-tip"
+          style={tipPosition(
+            { x: tip.x, y: tip.y },
+            { width: window.innerWidth, height: window.innerHeight },
+          )}
+        >
+          {tip.label}
+        </div>
+      )}
     </PickerLayer>
   );
 }

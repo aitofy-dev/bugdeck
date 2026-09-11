@@ -12,8 +12,7 @@ import { ERROR_CODES, FEEDBACK_MAX_ASSETS, type ErrorCode } from '@bugdeck/core'
 export interface WidgetStrings {
   // ─── launcher ──────────────────────────────────────────────────
   launcherLabel: string;
-  /** `{label}` — the launcher label, so a translation can reorder the suffix. */
-  launcherLabelWithDraft: string;
+  /** Names the dot on the launcher, for a screen reader and on hover. */
   launcherDraftTitle: string;
 
   // ─── dialog chrome ─────────────────────────────────────────────
@@ -36,11 +35,14 @@ export interface WidgetStrings {
   descriptionPlaceholder: string;
   /** `{max}` images, `{maxMb}` MB each. */
   editorHint: string;
+  /** `{shortcut}` — the paste chord, which differs on macOS. */
+  pasteHint: string;
   dropHere: string;
   imageAlt: string;
   removeImage: string;
   annotateImage: string;
   annotate: string;
+  remove: string;
 
   // ─── drafts and leaving ────────────────────────────────────────
   discardPrompt: string;
@@ -109,7 +111,6 @@ export type WidgetStringKey = {
 
 export const defaultStrings: WidgetStrings = {
   launcherLabel: 'Report a bug',
-  launcherLabelWithDraft: '{label} · draft',
   launcherDraftTitle: 'You have an unsent draft on this page',
 
   editorHeading: 'Report a bug',
@@ -127,13 +128,14 @@ export const defaultStrings: WidgetStrings = {
   pickRegionBanner: 'Click the part that is broken · Esc to cancel',
 
   descriptionPlaceholder: 'What were you doing? What happened? What did you expect?',
-  editorHint:
-    'Drag, drop or paste an image (Ctrl/Cmd+V) right where you are typing. Up to {max} images, {maxMb} MB each (PNG, JPEG, WEBP).',
-  dropHere: 'Drop images here',
+  editorHint: 'Up to {max} images, {maxMb} MB each',
+  pasteHint: 'Paste an image with {shortcut}',
+  dropHere: 'Drop to attach',
   imageAlt: 'Attached image',
   removeImage: 'Remove this image',
   annotateImage: 'Draw on this image',
   annotate: 'Draw',
+  remove: 'Remove',
 
   discardPrompt: 'Discard this draft?',
   keep: 'Keep',
@@ -142,8 +144,8 @@ export const defaultStrings: WidgetStrings = {
   draftImagesDropped: '{count} image(s) were too large to keep.',
 
   sentHeading: 'Sent · {code}',
-  codePending: 'creating reference',
-  sentBody: 'Thanks. Your report and its status are on the page below.',
+  codePending: 'assigning a number…',
+  sentBody: 'Thanks — we have it. You can follow its status here.',
   myReports: 'My reports',
 
   toolPen: 'Pen',

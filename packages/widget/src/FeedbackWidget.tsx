@@ -11,11 +11,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { collectContext, readBrowserEnv } from './context.js';
 import { draftSlug, loadDraft } from './draft-store.js';
 import { FeedbackEditor, type FeedbackEditorPayload } from './FeedbackEditor.js';
-import { FeedbackSent } from './FeedbackModal.js';
-import { formatString, mergeStrings, type WidgetStrings } from './strings.js';
+import { FeedbackSent } from './FeedbackSent.js';
+import { Launcher } from './Launcher.js';
+import { mergeStrings, type WidgetStrings } from './strings.js';
 import { WidgetStringsProvider } from './strings-context.js';
-import * as s from './styles.js';
 import { submitFeedback, type FeedbackSubmitResult } from './submit.js';
+import {
+  DEFAULT_LAUNCHER_OFFSET,
+  type LauncherPosition,
+  type WidgetTheme,
+} from './theme.js';
 import type { ToPng } from './capture.js';
 
 export interface FeedbackWidgetProps {
@@ -32,6 +37,14 @@ export interface FeedbackWidgetProps {
   zIndex?: number;
   /** Launcher label. Prefer `strings` when translating the whole widget. */
   label?: string;
+  /** `auto` follows the reader's `prefers-color-scheme`. */
+  theme?: WidgetTheme;
+  /** Any CSS colour; it becomes `--bd-accent` for this widget only. */
+  accent?: string;
+  /** Which corner the launcher sits in. */
+  position?: LauncherPosition;
+  /** Distance from both edges of that corner, in px. */
+  offset?: number;
   /** Override any of the widget's words; the rest fall back to English. */
   strings?: Partial<WidgetStrings>;
   /** Test seam; production uses the lazily imported `html-to-image`. */
@@ -53,6 +66,10 @@ export function FeedbackWidget({
   label,
   strings: overrides,
   toPng,
+  theme = 'auto',
+  accent,
+  position = 'bottom-right',
+  offset = DEFAULT_LAUNCHER_OFFSET,
 }: FeedbackWidgetProps) {
   const strings = mergeStrings(overrides);
   const [phase, setPhase] = useState<Phase>('closed');
@@ -99,21 +116,23 @@ export function FeedbackWidget({
   return (
     <WidgetStringsProvider strings={overrides}>
       {phase === 'closed' && (
-        <button
-          type="button"
-          style={s.launcher(zIndex)}
+        <Launcher
+          zIndex={zIndex}
+          theme={theme}
+          accent={accent}
+          position={position}
+          offset={offset}
+          label={launcherLabel}
+          hasDraft={hasDraft}
           onClick={open}
-          title={hasDraft ? strings.launcherDraftTitle : undefined}
-        >
-          {hasDraft
-            ? formatString(strings.launcherLabelWithDraft, { label: launcherLabel })
-            : launcherLabel}
-        </button>
+        />
       )}
 
       {phase === 'open' && (
         <FeedbackEditor
           zIndex={zIndex}
+          theme={theme}
+          accent={accent}
           strings={overrides}
           captureTarget={captureTarget}
           toPng={toPng}
@@ -130,6 +149,8 @@ export function FeedbackWidget({
       {phase === 'sent' && result && (
         <FeedbackSent
           zIndex={zIndex}
+          theme={theme}
+          accent={accent}
           result={result}
           myReportsHref={myReportsHref}
           onClose={() => {

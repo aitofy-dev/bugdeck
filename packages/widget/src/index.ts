@@ -10,7 +10,18 @@ export {
   type FeedbackEditorPayload,
   type FeedbackEditorProps,
 } from './FeedbackEditor.js';
-export { FeedbackForm, FeedbackSent, sentHeadline } from './FeedbackModal.js';
+export { FeedbackForm } from './FeedbackModal.js';
+export { FeedbackSent, sentHeadline, type FeedbackSentProps } from './FeedbackSent.js';
+/** Look and placement: tokens as CSS variables, one injected stylesheet. */
+export {
+  DEFAULT_ACCENT,
+  DEFAULT_LAUNCHER_OFFSET,
+  THEME_ATTR,
+  type LauncherPosition,
+  type WidgetTheme,
+} from './theme.js';
+export { injectWidgetStyles, widgetCss, STYLE_ELEMENT_ID } from './styles/sheet.js';
+export { dragHasFiles, imagesFromDataTransfer, pasteShortcut } from './image-intake.js';
 /** Every word the widget shows, and the hook that reads the active dictionary. */
 export {
   defaultStrings,
@@ -122,6 +133,7 @@ export {
 } from './annotate.js';
 export {
   ElementPicker,
+  elementLabel,
   firstForeignElement,
   isOwnUi,
   toRect,

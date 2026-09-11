@@ -1,7 +1,7 @@
-/** The two pure predicates behind drag-and-drop; the React wiring is not tested here. */
+/** The pure predicates behind drag, drop and paste; the React wiring is not tested here. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dragHasFiles, imagesFromDataTransfer } from '../FeedbackModal.js';
+import { dragHasFiles, imagesFromDataTransfer, pasteShortcut } from '../image-intake.js';
 
 const transfer = (types: string[], files: Array<{ name: string; type: string }>) =>
   ({ types, files }) as unknown as DataTransfer;
@@ -38,4 +38,11 @@ test('a dropped non-image is filtered out rather than sent to the server to be r
 
 test('a drop with no dataTransfer is not a crash', () => {
   assert.deepEqual(imagesFromDataTransfer(null), []);
+});
+
+test('the paste hint names the key the reader actually has', () => {
+  assert.equal(pasteShortcut('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'), '⌘V');
+  assert.equal(pasteShortcut('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)'), '⌘V');
+  assert.equal(pasteShortcut('Mozilla/5.0 (Windows NT 10.0; Win64; x64)'), 'Ctrl+V');
+  assert.equal(pasteShortcut(''), 'Ctrl+V');
 });

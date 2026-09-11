@@ -6,9 +6,9 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { firstForeignElement, isOwnUi } from '../ElementPicker.js';
+import { elementLabel, firstForeignElement, isOwnUi } from '../ElementPicker.js';
 import { WIDGET_ROOT_ATTR } from '../capture.js';
-import { applyImportant, pickerBox, pickerLayerDecls } from '../styles.js';
+import { applyImportant, pickerBox, pickerLayerDecls, tipPosition } from '../picker-styles.js';
 
 /** Enough of an Element for the owner test: `closest`, and an id to assert on. */
 const node = (id: string, own = false): Element =>
@@ -77,4 +77,20 @@ test('the outline never grows past the element it marks', () => {
   assert.equal(box.width, 1200);
   assert.equal(box.height, 800);
   assert.match(String(box.boxShadow), /inset/);
+});
+
+/** The tooltip says what devtools would say, so the user can name what they picked. */
+test('the tooltip reads tag.class, and just the tag when there is none', () => {
+  const withClass = { tagName: 'DIV', classList: { item: () => 'card' } } as unknown as Element;
+  const bare = { tagName: 'MAIN', classList: { item: () => null } } as unknown as Element;
+  assert.equal(elementLabel(withClass), 'div.card');
+  assert.equal(elementLabel(bare), 'main');
+});
+
+test('the tooltip flips rather than hanging off the edge of the screen', () => {
+  const viewport = { width: 1000, height: 800 };
+  assert.deepEqual(tipPosition({ x: 10, y: 10 }, viewport), { left: 24, top: 24 });
+  const corner = tipPosition({ x: 995, y: 795 }, viewport);
+  assert.ok(Number(corner.left) <= 850);
+  assert.ok(Number(corner.top) < 795);
 });

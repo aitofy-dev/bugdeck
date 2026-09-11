@@ -2,7 +2,7 @@
 
 Open-source [Marker.io](https://marker.io) / [BugHerd](https://bugherd.com) alternative — a floating "Report a bug" button for React apps. The user screenshots the page (or points at one element), draws on the shot, writes the report with the pictures inline, and presses Send. It lands on your own server, which files it into Plane, GitHub or Linear.
 
-Inline styles only, **zero UI dependencies**. The single runtime dependency is `html-to-image`, imported lazily so it never enters the host app's initial bundle.
+**Zero UI dependencies**: one `<style>` tag, injected once, every rule scoped to the widget's own root so nothing leaks either way. Colours are CSS variables, so `theme` and `accent` are the whole design system. The single runtime dependency is `html-to-image`, imported lazily so it never enters the host app's initial bundle.
 
 ```
 user clicks 🐞 → modal (block editor) → POST {apiBase}/reports (multipart)
@@ -43,12 +43,30 @@ apiClient.interceptors.response.use(undefined, (err) => {
 | `buildCommit` | `string` | — | Commit the running bundle was built from. Attached to the report context. |
 | `myReportsHref` | `string` | `'/reports'` | Where the "My reports" link on the confirmation points. |
 | `captureTarget` | `() => HTMLElement \| null` | `document.body` | What gets photographed. |
+| `theme` | `'light' \| 'dark' \| 'auto'` | `'auto'` | `auto` follows the reader's `prefers-color-scheme`. |
+| `accent` | `string` | `#2563eb` | Any CSS colour. Becomes `--bd-accent` for this widget only. |
+| `position` | `'bottom-right' \| 'bottom-left' \| 'top-right' \| 'top-left'` | `'bottom-right'` | Which corner the launcher sits in. |
+| `offset` | `number` | `20` | Launcher distance from both edges of that corner, in px. |
 | `zIndex` | `number` | `2147483000` | Stacking for every layer the widget draws. |
 | `label` | `string` | `strings.launcherLabel` | Launcher label. Prefer `strings` when translating everything. |
 | `strings` | `Partial<WidgetStrings>` | English | Every user-visible word, including one line per server error code. |
 | `toPng` | `ToPng` | lazy `html-to-image` | Test seam. |
 
 `FeedbackEditor` — the composing half with no opinion about where the report goes — takes the same `strings`, `captureTarget`, `toPng` and `zIndex`, plus `initialText` / `initialImages` / `onSubmit`. A report page uses it for "Edit" and "Comment", so there is exactly one editor to fix.
+
+### Styling
+
+Ten CSS variables, declared on the widget root and nothing else:
+
+`--bd-bg` · `--bd-fg` · `--bd-muted` · `--bd-border` · `--bd-accent` · `--bd-accent-fg` · `--bd-danger` · `--bd-radius` · `--bd-shadow` · `--bd-font`
+
+Light values are declared unconditionally, dark ones under `prefers-color-scheme` and under `[data-bd-theme="dark"]`, so `theme="dark"` works on a host that is otherwise light. Inline style is left for the values that are genuinely dynamic: coordinates, sizes, `zIndex`, the accent override. Animations are dropped under `prefers-reduced-motion`.
+
+Override a token from the host app if a prop is not enough — the widget sets no `!important` except on the element picker's layer, which has to survive hostile host CSS:
+
+```css
+[data-bugdeck-widget] { --bd-radius: 4px; --bd-font: "Inter", sans-serif; }
+```
 
 ### Translating
 
@@ -111,9 +129,26 @@ Success is `201 { id, code? }` (`code` may arrive later: the tracker bridge runs
 
 ```
 FeedbackWidget.tsx   launcher + filing a NEW report + the "Sent" screen
+Launcher.tsx         the floating pill: icon, label, draft dot, corner + offset
 FeedbackEditor.tsx   the shared composer (blocks + images + capture + picker + drafts).
                      A report page reuses this exact file for Edit and Comment
-FeedbackModal.tsx    block editor UI (the insertion point is the last focused text block)
+FeedbackModal.tsx    the composing dialog (the insertion point is the last focused text block)
+ModalShell.tsx       scrim, header, body, footer — and every a11y rule: focus trap,
+                     aria-modal, scroll lock, Esc
+FeedbackSent.tsx     the confirmation, with the tracker reference
+EditorToolbar.tsx    Capture screen · Pick element · Upload, one segmented group
+BlockList.tsx        the document: auto-growing paragraphs, images as a contact sheet
+AnnotateToolbar.tsx  the bar over the canvas, and the keys that drive it (P R A C)
+icons.tsx            eleven outlines as path data. No icon dependency
+theme.ts             theme, accent, launcher corner — the whole look, as three props
+styles/              the stylesheet, by area: tokens, chrome, editor, overlays; `sheet.ts`
+                     injects it once, keyed by id
+picker-styles.ts     the picker's geometry, inline and `!important` (see Gotchas)
+image-intake.ts      how an image gets in: dropped, dragged over, pasted
+use-focus-trap.ts    Tab stays in the dialog; the page behind it stops scrolling
+use-editor-draft.ts  restore on open, autosave while typing, save again on unload
+use-screen-capture.ts the shot, and the phase that unmounts the modal before it
+use-annotate-picture.ts loading the image being drawn on (StrictMode-safe)
 strings.ts           every user-visible word, English defaults, `{name}` placeholders
 strings-context.tsx  the merged dictionary, handed down without prop drilling
 exit-intent.ts       Hide (keep) vs Discard (drop) — ✕/Esc/backdrop mean Hide. Pure rule
@@ -142,6 +177,7 @@ Hard-won. Each one cost a production bug; please do not undo them.
 - **`html-to-image` has no timeout and cannot be cancelled.** One image whose server never answers leaves the promise pending forever and the widget stuck on "Capturing…". 15 s, then give up; the losing promise is swallowed so a shot we abandoned cannot surface as an unhandled rejection in the host app.
 - **A transparent PNG makes Undo look dead** — redrawing over the old frame leaves the undone stroke showing through. `clearRect` before every repaint.
 - **The element picker must not have a pointer-catching overlay.** `elementFromPoint` would return the overlay itself. The design instead is: the widget's UI is `pointer-events:none`, `pointermove`/`click` are listened for on `document` in the capture phase (with `preventDefault`, so a link cannot navigate), and the widget's own chrome is skipped via `firstForeignElement`.
+- **Tokens are declared on `[data-bd-theme]`, never on the widget root.** Every widget root would re-declare the LIGHT palette on itself, and the annotate overlay is a nested root — it would have flipped back to light inside a dark dialog. Only the tops of each tree (launcher, dialog, picker layer) carry the attribute; everything below inherits.
 - **The highlight MUST declare its own z-index and MUST live on `document.body`.** An earlier version drew a `position:fixed` div with no z-index, rendered in place inside the host's tree. On a bare demo page it looked perfect; in a real app (fixed sidebar at `z-10`, sticky header) it was **painted over** — still present, rect correct to the pixel, completely invisible. The banner declared `zIndex+1` and did show, producing exactly the reported symptom: "I click Pick element, I see the banner, nothing highlights." Measured with Playwright: hovering a content card gave `rgb(37,99,235)` on all four edges; hovering a sidebar item gave the sidebar's own `rgb(24,20,17)` on all four. The picker now draws into a **layer portalled to `document.body`** whose style is written with `!important` (`pickerLayerDecls` + `applyImportant`), so the host cannot change its position, stacking or visibility — and `position:fixed` cannot be broken by an ancestor with `transform`/`filter`/`contain`. That layer carries `WIDGET_ROOT_ATTR`; remove the attribute and the widget photographs and picks itself.
 - **The ring is `box-shadow: inset`, never a `border` on an inflated rect.** A 2 px border drawn OUTSIDE the rect leaves the viewport as soon as the hovered element reaches a screen edge — and a full-width panel reaches three at once, so the "highlight" vanishes while its rect is still correct.
 - **A DOM test for the picker is a blind test.** Both earlier fixes passed, because they asked "is there a div, is its rect right" and the broken build answered yes to both. The only check that separates "drawn" from "drawn under the sidebar" is **reading pixels out of a screenshot**: `e2e/picker-highlight.mjs`.
@@ -151,7 +187,12 @@ Hard-won. Each one cost a production bug; please do not undo them.
 - **Crop cuts from the IMAGE, never from the displayed canvas.** The canvas is shown fit-contain; measuring the selection on screen and cutting there gives the wrong box at the wrong resolution. Every crop coordinate lives in image space (`cropRect`, `shiftStrokes` in `annotate.ts`, both tested).
 - **`URL.revokeObjectURL` in a cleanup + StrictMode = a phantom error.** The effect runs, tears down, runs again; the teardown revokes the first URL while its image is still loading, that image fires `error`, and the editor showed "could not open this image" over a picture that had loaded perfectly from the second URL. A `cancelled` flag is required.
 - **Drawing on an image DROPS its `assetId`** (when editing an existing report). Those are new bytes; keeping the id tells the server "same image as before" and the drawing never leaves the browser.
+- **Hide has to FLUSH the draft, not trust the autosave.** The 600 ms debounce is cleared when the editor unmounts, so everything typed in the last 600 ms — which, for a one-sentence report, is everything — went away with the dialog that promised to keep it. `Hide` writes the snapshot synchronously before closing, the same way `beforeunload` does.
 - **"Cancel" that KEEPS the draft is one word saying two things.** Once drafts autosaved, the old Cancel only closed the modal: whoever wanted to keep their text was afraid to press it, and whoever wanted it gone pressed it and met the draft again later. It is now two buttons with one rule in `exit-intent.ts` (pure, tested): **✕ · Esc · backdrop click all mean Hide** when there is a draft — the most reflexive gesture must be the one that loses nothing. With no draft (editing an existing report, commenting) the Hide button is not shown at all: promising to keep something nothing is keeping is a lie. The confirmation is **inline in the dialog**, never `window.confirm` (some mobile browsers suppress it silently, so the draft would vanish unasked), and `clearDraft` runs **before** closing — close first and the pending autosave writes the discarded draft back.
+
+## Screens
+
+`docs/screens/` — light and dark, straight out of the demo app: `launcher-*.png`, `modal-*.png`, `annotate-*.png`.
 
 ## Test and build
 

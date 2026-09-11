@@ -1,0 +1,23 @@
+{
+    "name": "@bugdeck/example-vite-react",
+    "private": true,
+    "version": "0.1.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite --port 5173 --strictPort",
+        "build": "vite build",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "bugdeck": "workspace:*",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0"
+    },
+    "devDependencies": {
+        "@types/react": "^19.0.6",
+        "@types/react-dom": "^19.0.3",
+        "@vitejs/plugin-react": "^4.3.4",
+        "typescript": "^5.7.2",
+        "vite": "^6.0.7"
+    }
+}

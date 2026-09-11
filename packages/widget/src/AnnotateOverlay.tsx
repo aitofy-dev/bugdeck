@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react';
+import { AnnotateToolbar, ANNOTATE_TOOLS } from './AnnotateToolbar.js';
 import {
   ANNOTATE_COLORS,
   annotatedName,
@@ -18,28 +19,11 @@ import {
   type Stroke,
 } from './annotate.js';
 import { WIDGET_ROOT_ATTR } from './capture.js';
+import { useAnnotatePicture, type Picture } from './use-annotate-picture.js';
 import { MAX_IMAGE_BYTES, megabytes } from './images.js';
-import { formatString, type WidgetStringKey } from './strings.js';
+import { formatString } from './strings.js';
 import { useWidgetStrings } from './strings-context.js';
-import * as s from './styles.js';
-
-const TOOLS: ReadonlyArray<{ id: AnnotateTool; label: WidgetStringKey }> = [
-  { id: 'pen', label: 'toolPen' },
-  { id: 'rect', label: 'toolRect' },
-  { id: 'arrow', label: 'toolArrow' },
-  { id: 'crop', label: 'toolCrop' },
-];
-
-/**
- * The picture being drawn on, whatever it currently is: the uploaded file at
- * first, a cropped canvas afterwards. Kept together with its size because a
- * `CanvasImageSource` does not reliably carry one.
- */
-interface Picture {
-  source: CanvasImageSource;
-  width: number;
-  height: number;
-}
+import { useWidgetStyles } from './styles/sheet.js';
 
 /** One reversible state of the editor. Undo pops one of these off the stack. */
 interface Step {
@@ -56,32 +40,22 @@ export interface AnnotateOverlayProps {
 }
 
 /**
- * Draw on one queued image, full-screen.
+ * Draw on one queued image, full-screen. The canvas holds the image at FULL
+ * resolution and is only displayed scaled down, so the export is the picture
+ * the user uploaded; pointer coordinates come back through `toImagePoint`.
  *
- * The canvas is the image at FULL resolution and is only displayed scaled down
- * (see `annotateCanvas`), so what gets exported is the picture the user
- * uploaded, not a viewport-sized copy of it. Pointer coordinates are converted
- * back into image space on the way in — that conversion is `toImagePoint`, and
- * it is the one piece of this file with tests.
- *
- * The base is the CURRENT file rather than some pristine original: opening "Draw"
- * twice must continue on top of the first pass. Undo therefore reaches back
- * only through this session's edits, which is what "undo" means to someone who
- * just drew three lines — the earlier pass is part of the picture now.
- *
- * Undo is a stack of whole editor states, not a stack of strokes, because
- * "Crop" is also undoable and a crop changes the picture rather than the mark
- * list. Keeping the pre-crop picture on the stack is the entire cost of making
- * one button honest for both kinds of edit.
+ * Undo is a stack of whole editor states rather than of strokes, because Crop
+ * is undoable too and it changes the picture, not the mark list.
  */
 export function AnnotateOverlay({ zIndex, file, onSave, onCancel }: AnnotateOverlayProps) {
   const strings = useWidgetStrings();
+  useWidgetStyles();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const liveRef = useRef<Stroke | null>(null);
   /** Live crop drag: an anchor plus the rect it currently describes. */
   const cropAnchor = useRef<Point | null>(null);
   const liveCrop = useRef<CropRect | null>(null);
-  const [picture, setPicture] = useState<Picture | null>(null);
+  const { picture, setPicture, failed } = useAnnotatePicture(file);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [history, setHistory] = useState<Step[]>([]);
   const [selection, setSelection] = useState<CropRect | null>(null);
@@ -89,6 +63,7 @@ export function AnnotateOverlay({ zIndex, file, onSave, onCancel }: AnnotateOver
   const [color, setColor] = useState<string>(ANNOTATE_COLORS[0]!.value);
   const [error, setError] = useState<string | undefined>();
   const ready = picture !== null;
+  const shownError = failed ? strings.annotateLoadFailed : error;
 
   // Redrawing from the base image is what makes undo possible at all: a canvas
   // remembers pixels, not strokes, so every change repaints the whole thing.
@@ -107,34 +82,6 @@ export function AnnotateOverlay({ zIndex, file, onSave, onCancel }: AnnotateOver
     if (crop) drawCropOverlay(ctx, crop, { width: canvas.width, height: canvas.height });
   }, [picture, selection, strokes]);
 
-  useEffect(() => {
-    // A superseded load must stay silent. Under React StrictMode the effect runs,
-    // is torn down, and runs again; the teardown revokes the first object URL
-    // while its image is still loading, so that image fires `error` — and
-    // without this guard the editor showed "could not open this image" over a
-    // picture that had loaded perfectly well from the second URL.
-    let cancelled = false;
-    const url = URL.createObjectURL(file);
-    const image = new Image();
-    image.onload = () => {
-      if (cancelled) return;
-      setError(undefined);
-      setPicture({
-        source: image,
-        width: image.naturalWidth || image.width,
-        height: image.naturalHeight || image.height,
-      });
-    };
-    image.onerror = () => {
-      if (!cancelled) setError(strings.annotateLoadFailed);
-    };
-    image.src = url;
-    return () => {
-      cancelled = true;
-      URL.revokeObjectURL(url);
-    };
-  }, [file, strings.annotateLoadFailed]);
-
   // The canvas keeps the picture's intrinsic size — after a crop that is the
   // cropped size, which is what makes the export full-res and correctly framed.
   useEffect(() => {
@@ -148,14 +95,6 @@ export function AnnotateOverlay({ zIndex, file, onSave, onCancel }: AnnotateOver
   useEffect(() => {
     if (ready) redraw();
   }, [ready, redraw]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCancel();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onCancel]);
 
   const pointAt = (event: PointerEvent<HTMLCanvasElement>) => {
     const canvas = event.currentTarget;
@@ -229,11 +168,8 @@ export function AnnotateOverlay({ zIndex, file, onSave, onCancel }: AnnotateOver
     setStrokes((current) => [...current, stroke]);
   };
 
-  /**
-   * Apply the selection: the picture becomes the selected region at FULL
-   * resolution (drawn 1:1 out of the current picture, never out of the scaled
-   * canvas on screen), and the marks move with it.
-   */
+  /** The region at FULL resolution, cut from the picture and never from the
+   * scaled canvas on screen; the marks move with it. */
   const applyCrop = () => {
     if (!picture || !selection) return;
     const cut = document.createElement('canvas');
@@ -262,11 +198,7 @@ export function AnnotateOverlay({ zIndex, file, onSave, onCancel }: AnnotateOver
     setTool('pen');
   };
 
-  /**
-   * One step back, whether that step was a stroke or a crop — the stack holds
-   * whole states, so undoing a crop restores the picture it was cut from along
-   * with the marks at their pre-crop coordinates.
-   */
+  /** One step back, whether that step was a stroke or a crop. */
   const undo = () => {
     const previous = history[history.length - 1];
     if (!previous) return;
@@ -297,62 +229,50 @@ export function AnnotateOverlay({ zIndex, file, onSave, onCancel }: AnnotateOver
     }, 'image/png');
   };
 
-  return (
-    <div {...{ [WIDGET_ROOT_ATTR]: '' }} style={s.annotateLayer(zIndex)}>
-      <div style={s.annotateToolbar}>
-        {TOOLS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            aria-pressed={tool === item.id}
-            style={s.annotateTool(tool === item.id)}
-            onClick={() => setTool(item.id)}
-          >
-            {strings[item.label]}
-          </button>
-        ))}
-        <span style={s.annotateSeparator} />
-        {ANNOTATE_COLORS.map((swatch) => (
-          <button
-            key={swatch.value}
-            type="button"
-            aria-label={strings[swatch.label]}
-            aria-pressed={color === swatch.value}
-            style={s.annotateSwatch(swatch.value, color === swatch.value)}
-            onClick={() => setColor(swatch.value)}
-          />
-        ))}
-        <span style={s.annotateSeparator} />
-        {tool === 'crop' && (
-          <button
-            type="button"
-            style={s.annotateTool(true)}
-            disabled={!selection}
-            onClick={applyCrop}
-          >
-            {strings.applyCrop}
-          </button>
-        )}
-        <button
-          type="button"
-          style={s.annotateTool(false)}
-          disabled={history.length === 0}
-          onClick={undo}
-        >
-          {strings.undo}
-        </button>
-        <button type="button" style={s.annotateTool(false)} onClick={onCancel}>
-          {strings.cancel}
-        </button>
-        <button type="button" style={s.primaryButton(!ready)} disabled={!ready} onClick={save}>
-          {strings.save}
-        </button>
-      </div>
+  /** Shortcuts: the toolbar is a strip of chrome on a canvas the user is drawing on. */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onCancel();
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        undo();
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const picked = ANNOTATE_TOOLS.find((item) => item.shortcut === event.key.toUpperCase());
+      if (picked) setTool(picked.id);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onCancel, undo]);
 
-      <div style={s.annotateCanvasWrap}>
+  return (
+    <div
+      {...{ [WIDGET_ROOT_ATTR]: '' }}
+      className="bd-annotate"
+      style={{ zIndex: zIndex + 5 }}
+    >
+      <AnnotateToolbar
+        tool={tool}
+        color={color}
+        ready={ready}
+        canUndo={history.length > 0}
+        canApplyCrop={selection !== null}
+        onTool={setTool}
+        onColor={setColor}
+        onApplyCrop={applyCrop}
+        onUndo={undo}
+        onCancel={onCancel}
+        onSave={save}
+      />
+
+      <div className="bd-canvas-wrap">
         <canvas
           ref={canvasRef}
-          style={s.annotateCanvas}
+          className="bd-canvas"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -360,12 +280,14 @@ export function AnnotateOverlay({ zIndex, file, onSave, onCancel }: AnnotateOver
         />
       </div>
 
-      {tool === 'crop' && !error && (
-        <p style={s.annotateHint}>
-          {selection ? strings.cropHintAdjust : strings.cropHintDrag}
+      {tool === 'crop' && !shownError && (
+        <p className="bd-ahint">{selection ? strings.cropHintAdjust : strings.cropHintDrag}</p>
+      )}
+      {shownError && (
+        <p className="bd-aerror" role="alert">
+          {shownError}
         </p>
       )}
-      {error && <p style={s.annotateStatus}>{error}</p>}
     </div>
   );
 }

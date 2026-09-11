@@ -1,0 +1,95 @@
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+.shell {
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --fg: #11151c;
+  --muted: #667085;
+  --line: #e5e8ee;
+  --brand: #2563eb;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+}
+.shell[data-theme='dark'] {
+  --bg: #0e1116;
+  --panel: #161a21;
+  --fg: #e8eaed;
+  --muted: #99a1ad;
+  --line: #262b34;
+  color-scheme: dark;
+}
+
+/* Fixed, with a stacking order of its own: this is what used to paint over the
+   picker's highlight, and the whole reason the demo looks like an app. */
+.side {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 10;
+  width: 240px;
+  padding: 18px 14px;
+  background: #14181f;
+  color: #e6e9ef;
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; padding: 4px 8px 18px; }
+.brand-mark {
+  display: grid; place-items: center; width: 26px; height: 26px;
+  border-radius: 7px; background: var(--brand); color: #fff; font-size: 13px;
+}
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav-item {
+  padding: 11px 10px; border-radius: 8px; color: #aeb6c4;
+  text-decoration: none; font-weight: 500;
+}
+.nav-item:hover { background: #1d232c; color: #fff; }
+.nav-item--on { background: #232b36; color: #fff; }
+.side-foot {
+  position: absolute; left: 14px; right: 14px; bottom: 18px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px; border-radius: 10px; background: #1b212a; font-weight: 600;
+}
+.side-foot em { display: block; font-style: normal; font-weight: 400; font-size: 12px; color: #97a0ae; }
+.avatar {
+  display: grid; place-items: center; width: 32px; height: 32px; flex: none;
+  border-radius: 50%; background: var(--brand); color: #fff; font-size: 12px; font-weight: 700;
+}
+
+.main { margin-left: 240px; }
+.head {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  height: 60px; padding: 0 24px;
+  background: var(--panel); border-bottom: 1px solid var(--line);
+}
+.head-title { margin: 0; font-size: 17px; }
+.head-actions { display: flex; align-items: center; gap: 12px; }
+.search {
+  width: 260px; padding: 7px 12px; border-radius: 8px;
+  border: 1px solid var(--line); color: var(--muted); background: var(--bg);
+}
+.ghost {
+  padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--fg); font: inherit; font-weight: 500; cursor: pointer;
+}
+
+.content { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.card { display: flex; flex-direction: column; justify-content: center; min-height: 176px; padding: 20px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); }
+.card-label { margin: 0; color: var(--muted); font-size: 13px; }
+.card-value { margin: 10px 0 6px; font-size: 30px; font-weight: 650; letter-spacing: -0.5px; }
+.card-delta { margin: 0; color: #16a34a; font-size: 12px; font-weight: 600; }
+
+.panel { border-radius: 12px; border: 1px solid var(--line); background: var(--panel); }
+.panel-title { margin: 0; padding: 16px 18px; font-size: 14px; border-bottom: 1px solid var(--line); }
+.table { width: 100%; border-collapse: collapse; }
+.table td { padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.table tr:last-child td { border-bottom: 0; }
+.muted { color: var(--muted); }
+.pill {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--muted); font-size: 12px; font-weight: 600;
+}
